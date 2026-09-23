@@ -1,6 +1,9 @@
 package com.hastane.merkezi_randevu_sistemi.controller;
 
+import com.hastane.merkezi_randevu_sistemi.dto.LeaveRequest;
+import com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus;
 import com.hastane.merkezi_randevu_sistemi.model.Doctor;
+import com.hastane.merkezi_randevu_sistemi.repository.AppointmentRepository;
 import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.service.DoctorService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -17,6 +22,17 @@ public class DoctorController {
 
     @Autowired
     private DoctorService doctorService;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    // Bu doktor kaydı giriş yapan kullanıcıya mı ait? (izin günleri kendi kaydı için yönetilir)
+    private boolean isOwnDoctorRecord(Long doctorId, Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        return doctorService.getDoctorByUserId(current.getUserId())
+                .map(doctor -> doctor.getId().equals(doctorId))
+                .orElse(false);
+    }
 
     @GetMapping
     public List<Doctor> getAllDoctors() {
@@ -40,5 +56,54 @@ public class DoctorController {
     @PostMapping
     public Doctor createDoctor(@RequestBody Doctor doctor) {
         return doctorService.saveDoctor(doctor);
+    }
+
+    // --- DOKTOR İZİN / GÖREV GÜNLERİ (kural R7) ---
+    // Doktor yalnızca kendi izin günlerini görüntüler ve yönetir.
+
+    @GetMapping("/{doctorId}/leaves")
+    public ResponseEntity<?> getLeaves(@PathVariable Long doctorId, Authentication authentication) {
+        if (!isOwnDoctorRecord(doctorId, authentication)) {
+            return ResponseEntity.status(403).body("Yalnızca kendi izin günlerinizi görebilirsiniz!");
+        }
+        return ResponseEntity.ok(doctorService.getUpcomingLeaves(doctorId));
+    }
+
+    @PostMapping("/{doctorId}/leaves")
+    public ResponseEntity<?> addLeave(@PathVariable Long doctorId,
+                                      @RequestBody LeaveRequest request,
+                                      Authentication authentication) {
+        if (!isOwnDoctorRecord(doctorId, authentication)) {
+            return ResponseEntity.status(403).body("Yalnızca kendi izin günlerinizi tanımlayabilirsiniz!");
+        }
+        try {
+            LocalDate date = LocalDate.parse(request.getLeaveDate());
+            // O gün iptal edilmemiş randevusu varsa izin tanımlanmasına izin verilmez
+            boolean hasAppointments = appointmentRepository
+                    .findByDoctorIdAndAppointmentDateBetween(doctorId, date.atStartOfDay(), date.atTime(LocalTime.MAX))
+                    .stream()
+                    .anyMatch(appointment -> appointment.getStatus() != AppointmentStatus.CANCELLED);
+
+            return ResponseEntity.ok(doctorService.addLeave(doctorId, date, request.getReason(), hasAppointments));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().body("Geçersiz tarih biçimi! (yyyy-AA-gg bekleniyor)");
+        }
+    }
+
+    @DeleteMapping("/{doctorId}/leaves/{leaveId}")
+    public ResponseEntity<?> removeLeave(@PathVariable Long doctorId,
+                                         @PathVariable Long leaveId,
+                                         Authentication authentication) {
+        if (!isOwnDoctorRecord(doctorId, authentication)) {
+            return ResponseEntity.status(403).body("Yalnızca kendi izin günlerinizi kaldırabilirsiniz!");
+        }
+        try {
+            doctorService.removeLeave(doctorId, leaveId);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

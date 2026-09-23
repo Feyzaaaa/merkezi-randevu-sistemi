@@ -25,6 +25,10 @@ public final class AppointmentScheduleRules {
     public static final LocalTime LUNCH_END = LocalTime.of(13, 0);
     public static final int SLOT_MINUTES = 15;
     public static final int MAX_ADVANCE_DAYS = 30;
+    /** Bir hastanın aynı anda sahip olabileceği en fazla aktif (gelecek tarihli, iptal edilmemiş) randevu sayısı */
+    public static final int MAX_ACTIVE_APPOINTMENTS = 5;
+    /** Randevuya bu süreden az kalmışsa hasta kendi randevusunu iptal edemez (doktor ve yönetici edebilir) */
+    public static final int CANCELLATION_NOTICE_HOURS = 1;
 
     private AppointmentScheduleRules() {}
 
@@ -38,7 +42,16 @@ public final class AppointmentScheduleRules {
         TOO_FAR_AHEAD("R3", "En fazla " + MAX_ADVANCE_DAYS + " gün sonrasına randevu alınabilir!"),
         NOT_ON_SLOT_GRID("R4", "Randevular " + SLOT_MINUTES + " dakikalık dilimlerle başlar (örn. 09:00, 09:15, 09:30)!"),
         OUTSIDE_WORKING_HOURS("R5", "Randevular yalnızca " + WORK_START + " - " + WORK_END + " saatleri arasında alınabilir!"),
-        LUNCH_BREAK("R6", "Öğle arasına (" + LUNCH_START + " - " + LUNCH_END + ") randevu alınamaz!");
+        LUNCH_BREAK("R6", "Öğle arasına (" + LUNCH_START + " - " + LUNCH_END + ") randevu alınamaz!"),
+
+        // --- Veriye bağlı senaryolar ---
+        // Aşağıdaki kurallar yalnızca tarih/saate bakarak karar verilemez; veritabanındaki
+        // mevcut kayıtlara ihtiyaç duyarlar ve bu yüzden AppointmentService içinde uygulanır.
+        // Mesajları burada tutulur ki tüm kural kataloğu tek bir yerden okunabilsin.
+        DOCTOR_ON_LEAVE("R7", "Seçtiğiniz doktor bu tarihte izinli! Lütfen başka bir gün veya doktor seçin."),
+        SAME_DAY_SAME_DEPARTMENT("R8", "Aynı gün aynı poliklinikten ikinci bir randevu alamazsınız!"),
+        ACTIVE_LIMIT_REACHED("R9", "En fazla " + MAX_ACTIVE_APPOINTMENTS + " aktif randevunuz olabilir. Yeni randevu için mevcut randevularınızdan birini iptal edin."),
+        CANCELLATION_TOO_LATE("R10", "Randevunuza " + CANCELLATION_NOTICE_HOURS + " saatten az kaldığı için iptal edemezsiniz. Lütfen hastaneyi arayın.");
 
         private final String code;
         private final String message;

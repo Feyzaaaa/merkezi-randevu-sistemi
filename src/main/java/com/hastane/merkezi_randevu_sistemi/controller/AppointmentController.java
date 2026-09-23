@@ -99,7 +99,9 @@ public class AppointmentController {
             if (!isOwnerPatient && !isOwnerDoctor && !isAdmin) {
                 return ResponseEntity.status(403).body("Sadece kendi randevunuzu iptal edebilirsiniz!");
             }
-            Appointment updated = appointmentService.cancelAppointment(id);
+            // R10: Son dakika iptali yalnızca hasta için engellenir; doktor ve yönetici
+            // operasyonel gerekçeyle (hasta gelmedi, doktor rahatsızlandı) her an iptal edebilir.
+            Appointment updated = appointmentService.cancelAppointment(id, isOwnerPatient && !isAdmin);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

@@ -4,6 +4,7 @@ import com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus;
 import com.hastane.merkezi_randevu_sistemi.model.Doctor;
 import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.repository.AppointmentRepository;
+import com.hastane.merkezi_randevu_sistemi.repository.DoctorLeaveRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.rules.AppointmentScheduleRules;
@@ -37,6 +38,9 @@ public class AppointmentService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private DoctorLeaveRepository doctorLeaveRepository;
+
     private String doctorDisplayName(Doctor doctor) {
         if (doctor == null || doctor.getUser() == null) return "doktorunuz";
         String title = doctor.getTitle() != null ? doctor.getTitle() + " " : "";
@@ -60,7 +64,37 @@ public class AppointmentService {
         AppointmentScheduleRules.validate(appointment.getAppointmentDate(), LocalDateTime.now())
                 .ifPresent(violation -> { throw new IllegalArgumentException(violation.toUserMessage()); });
 
-        // 3. Doktor Çakışma Kontrolü (iptal edilmiş randevular çakışma sayılmaz)
+        // 3. VERİYE BAĞLI PLANLAMA KURALLARI (R7-R9)
+        // Bu kurallar yalnızca tarih/saate bakarak değil, veritabanındaki mevcut
+        // kayıtlara bakarak karar verilir; bu yüzden kural sınıfında değil burada uygulanır.
+        LocalDateTime requested = appointment.getAppointmentDate();
+        Long doctorId = appointment.getDoctor().getId();
+        Long patientId = appointment.getPatient().getId();
+
+        // R7: Doktor o gün izinli/görevde değilse randevu açılamaz
+        if (doctorLeaveRepository.existsByDoctorIdAndLeaveDate(doctorId, requested.toLocalDate())) {
+            throw new IllegalArgumentException(AppointmentScheduleRules.Violation.DOCTOR_ON_LEAVE.toUserMessage());
+        }
+
+        // R8: Aynı gün aynı poliklinikten ikinci randevu (doktor farklı olsa bile)
+        Doctor requestedDoctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new IllegalArgumentException("Seçilen doktor bulunamadı!"));
+        if (requestedDoctor.getDepartment() != null
+                && appointmentRepository.existsSameDayAppointmentInDepartment(
+                        patientId,
+                        requestedDoctor.getDepartment().getId(),
+                        requested.toLocalDate().atStartOfDay(),
+                        requested.toLocalDate().atTime(LocalTime.MAX))) {
+            throw new IllegalArgumentException(AppointmentScheduleRules.Violation.SAME_DAY_SAME_DEPARTMENT.toUserMessage());
+        }
+
+        // R9: Aktif randevu üst sınırı
+        if (appointmentRepository.countActiveAppointments(patientId, LocalDateTime.now())
+                >= AppointmentScheduleRules.MAX_ACTIVE_APPOINTMENTS) {
+            throw new IllegalArgumentException(AppointmentScheduleRules.Violation.ACTIVE_LIMIT_REACHED.toUserMessage());
+        }
+
+        // 4. Doktor Çakışma Kontrolü (iptal edilmiş randevular çakışma sayılmaz)
         // NOT: Bu kontrol "önce bak, sonra kaydet" mantığıdır — tek başına eşzamanlı istekler
         // için yeterli değildir. Asıl garanti aşağıdaki veritabanı unique index'inden gelir
         // (bkz. schema.sql); bu kontrol sadece normal durumda hızlı ve dostane bir mesaj verir.
@@ -69,7 +103,7 @@ public class AppointmentService {
             throw new RuntimeException("Bu doktorun bu saatte randevusu zaten dolu!");
         }
 
-        // 4. Hasta Çakışma Kontrolü (Tez konun!) (iptal edilmiş randevular çakışma sayılmaz)
+        // 5. Hasta Çakışma Kontrolü (Tez konun!) (iptal edilmiş randevular çakışma sayılmaz)
         if (appointmentRepository.existsByPatientIdAndAppointmentDateAndStatusNot(
                 appointment.getPatient().getId(), appointment.getAppointmentDate(), AppointmentStatus.CANCELLED)) {
             throw new RuntimeException("Aynı saatte başka bir randevunuz zaten bulunuyor!");
@@ -77,7 +111,7 @@ public class AppointmentService {
 
         appointment.setStatus(AppointmentStatus.PENDING);
 
-        // 5. SON GÜVENCE: İki istek yukarıdaki kontrolleri tam olarak aynı anda geçip buraya
+        // 6. SON GÜVENCE: İki istek yukarıdaki kontrolleri tam olarak aynı anda geçip buraya
         // birlikte ulaşırsa (klasik yarış durumu / race condition), veritabanındaki kısmi
         // unique index ikinci INSERT'i reddeder. Bunu burada yakalayıp aynı dostane mesajlara çeviriyoruz.
         try {
@@ -134,9 +168,21 @@ public class AppointmentService {
         return appointmentRepository.save(appointment);
     }
 
-    public Appointment cancelAppointment(Long appointmentId) {
+    /**
+     * @param enforceNoticePeriod hasta kendi randevusunu iptal ediyorsa true verilir ve
+     *        son dakika iptali (R10) engellenir. Doktor ve yönetici için false'tur:
+     *        onlar operasyonel gerekçeyle her an iptal edebilmelidir.
+     */
+    public Appointment cancelAppointment(Long appointmentId, boolean enforceNoticePeriod) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + appointmentId));
+
+        // R10: Randevuya çok az kalmışsa hasta iptal edemez
+        if (enforceNoticePeriod && appointment.getAppointmentDate() != null
+                && appointment.getAppointmentDate().isBefore(
+                        LocalDateTime.now().plusHours(AppointmentScheduleRules.CANCELLATION_NOTICE_HOURS))) {
+            throw new IllegalArgumentException(AppointmentScheduleRules.Violation.CANCELLATION_TOO_LATE.toUserMessage());
+        }
 
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new RuntimeException("Bu randevu zaten iptal edilmiş!");
@@ -165,6 +211,11 @@ public class AppointmentService {
     public List<String> getAvailableSlots(Long doctorId, LocalDate date) {
         LocalDateTime now = LocalDateTime.now();
         List<String> allSlots = new ArrayList<>();
+
+        // R7: Doktor o gün izinliyse hiç saat sunulmaz
+        if (doctorLeaveRepository.existsByDoctorIdAndLeaveDate(doctorId, date)) {
+            return allSlots;
+        }
 
         LocalTime start = AppointmentScheduleRules.WORK_START;
         while (!start.plusMinutes(AppointmentScheduleRules.SLOT_MINUTES).isAfter(AppointmentScheduleRules.WORK_END)) {

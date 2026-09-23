@@ -53,6 +53,9 @@ public class SecurityConfig {
                 // --- DOKTOR YETKİLERİ ---
                 // Doktor kendi Doctor kaydını (doctorId'sini) bulmak için kullanır
                 .requestMatchers("/api/doctors/by-user/**").hasRole("DOCTOR")
+                // İzin/görev günleri: doktor yalnızca kendi kaydı için yönetir (sahiplik controller'da)
+                .requestMatchers("/api/doctors/*/leaves/**").hasRole("DOCTOR")
+                .requestMatchers("/api/doctors/*/leaves").hasRole("DOCTOR")
                 // Doktor Portalı: sadece DOCTOR rolü kendi hasta listesini görebilir ve vaka notu girebilir
                 .requestMatchers("/api/appointments/doctor/**").hasRole("DOCTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/note").hasRole("DOCTOR")
