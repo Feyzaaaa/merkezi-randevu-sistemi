@@ -19,15 +19,17 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
-    // DEĞİŞİKLİK: String yerine Role (Enum) tipini kullanıyoruz
     @Enumerated(EnumType.STRING)
-    private Role role;
+    private Role role = Role.PATIENT; // Varsayılan olarak hasta atanır
 
     public User() {}
 
     // --- GETTERLAR ---
     public Long getId() { return id; }
     public String getEmail() { return email; }
+
+    // Şifre sadece istek gövdesinden okunur (register/login), hiçbir yanıtta JSON'a yazılmaz
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     public String getPassword() { return password; }
     
     @JsonProperty("firstName")
@@ -36,7 +38,6 @@ public class User {
     @JsonProperty("lastName")
     public String getLastName() { return lastName; }
     
-    // Artık tip uyuşmazlığı hatası vermez
     public Role getRole() { return role; }
 
     // --- SETTERLAR ---
@@ -46,6 +47,16 @@ public class User {
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
     
-    // Artık tip uyuşmazlığı hatası vermez
-    public void setRole(Role role) { this.role = role; }
+    // Gelen String rolü güvenli bir şekilde Enum'a çeviren akıllı setter
+    public void setRole(Object role) {
+        if (role instanceof Role) {
+            this.role = (Role) role;
+        } else if (role instanceof String) {
+            try {
+                this.role = Role.valueOf(((String) role).toUpperCase());
+            } catch (IllegalArgumentException e) {
+                this.role = Role.PATIENT; // Geçersizse varsayılan hasta
+            }
+        }
+    }
 }

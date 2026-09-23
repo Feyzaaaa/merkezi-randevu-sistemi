@@ -1,11 +1,14 @@
 package com.hastane.merkezi_randevu_sistemi.controller;
+import com.hastane.merkezi_randevu_sistemi.dto.AuthResponse;
 import com.hastane.merkezi_randevu_sistemi.dto.LoginRequest;
 import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.model.Role; // Role enum'ını import etmeyi unutma!
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
+import com.hastane.merkezi_randevu_sistemi.security.JwtUtil;
 import com.hastane.merkezi_randevu_sistemi.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -24,6 +27,12 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @GetMapping
     public List<User> getAllUsers() {
         return userService.getAllUsers();
@@ -38,6 +47,9 @@ public class UserController {
 
         // 2. DOĞRU KULLANIM: String yerine direkt Enum değerini atıyoruz
         user.setRole(Role.PATIENT);
+
+        // 2b. Şifreyi düz metin değil, BCrypt hash'i olarak sakla
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         // 3. Kaydet
         User savedUser = userService.saveUser(user);
@@ -59,9 +71,14 @@ public class UserController {
         
         return userRepository.findByEmailIgnoreCase(cleanEmailInput)
                 .map(user -> {
-                    if (user.getPassword().equals(passwordInput)) {
+                    if (passwordEncoder.matches(passwordInput, user.getPassword())) {
                         System.out.println("Giriş Başarılı: " + user.getFirstName() + " Role: " + user.getRole());
-                        return ResponseEntity.ok(user);
+                        // Rol tabanlı yetkilendirme için: kimliği ve rolü taşıyan imzalı token üretilir
+                        String token = jwtUtil.generateToken(user);
+                        AuthResponse authResponse = new AuthResponse(
+                                user.getId(), user.getEmail(), user.getFirstName(),
+                                user.getLastName(), user.getRole(), token);
+                        return ResponseEntity.ok(authResponse);
                     } else {
                         return ResponseEntity.status(401).body("Hatalı şifre!");
                     }

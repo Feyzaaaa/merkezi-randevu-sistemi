@@ -1,5 +1,4 @@
 package com.hastane.merkezi_randevu_sistemi.dto;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;

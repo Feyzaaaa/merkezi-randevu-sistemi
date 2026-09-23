@@ -1,5 +1,4 @@
 package com.hastane.merkezi_randevu_sistemi.service;
-
 import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
