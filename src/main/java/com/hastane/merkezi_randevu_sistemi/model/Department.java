@@ -1,15 +1,8 @@
 package com.hastane.merkezi_randevu_sistemi.model;
-
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "departments")
-@Data
-@NoArgsConstructor // Lombok otomatik boş constructor oluşturur
-@AllArgsConstructor // Lombok tüm alanlı constructor oluşturur
 public class Department {
     
     @Id
@@ -19,24 +12,31 @@ public class Department {
     @Column(nullable = false, unique = true)
     private String name;
 
-    // --- MANUEL DOKUNUŞLAR (Eclipse Hatasını Engellemek İçin) ---
-
-    // 1. Boş Constructor: Java'nın "new Department()" diyebilmesi için şart!
+    // 1. HATAYI ÇÖZECEK OLAN BOŞ CONSTRUCTOR (DataLoader bunu arıyor)
     public Department() {
     }
 
-    // 2. İsimli Constructor: "new Department('Göz')" diyebilmek için şart!
+    // 2. İsimli Constructor
     public Department(String name) {
         this.name = name;
     }
 
-    // 3. Setter: "goz.setName('Göz')" diyebilmek için şart!
+    // 3. Setter
     public void setName(String name) {
         this.name = name;
     }
 
-    // 4. Getter: İsmi okuyabilmek için şart!
+    // 4. Getter
     public String getName() {
         return name;
+    }
+
+    // 5. id için getter/setter (yoksa JSON yanıtında id hiç görünmüyor!)
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 }
