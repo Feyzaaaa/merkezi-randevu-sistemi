@@ -1,5 +1,4 @@
 package com.hastane.merkezi_randevu_sistemi.model;
-
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,6 +30,10 @@ public class Appointment {
     @Column(columnDefinition = "TEXT")
     private String complaint;
 
+    // Doktorun muayene sonrası girdiği vaka notu / reçete bilgisi
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status;
 
@@ -45,4 +48,8 @@ public class Appointment {
     public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }
 
     public void setStatus(AppointmentStatus status) { this.status = status; }
+
+    // --- YENİ EKLENEN NOT KÖPRÜLERİ ---
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 }
