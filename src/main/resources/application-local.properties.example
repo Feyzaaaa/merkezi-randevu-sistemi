@@ -1,0 +1,16 @@
+# ŞABLON DOSYA - Bu dosya git'e gönderilir, GERÇEK ŞİFRE İÇERMEZ.
+#
+# Projeyi yeni bir bilgisayara kurarken:
+#   1) Bu dosyayı "application-local.properties" adıyla kopyalayın
+#   2) Aşağıdaki değerleri kendi ortamınıza göre doldurun
+# Gerçek dosya .gitignore'da olduğu için asla commit'lenmez.
+
+# PostgreSQL şifreniz
+spring.datasource.password=BURAYA_VERITABANI_SIFRENIZ
+
+# Rol tabanlı yetkilendirmede token imzalama anahtarı (en az 32 karakter olmalı)
+mhrs.jwt.secret=BURAYA_EN_AZ_32_KARAKTERLIK_GIZLI_ANAHTAR
+
+# E-posta bildirimleri için Gmail hesabı ve UYGULAMA ŞİFRESİ (normal hesap şifresi değil)
+spring.mail.username=ornek@gmail.com
+spring.mail.password=BURAYA_GMAIL_UYGULAMA_SIFRESI

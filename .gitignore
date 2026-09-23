@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Yerel gizli ayarlar (veritabanı/JWT/e-posta şifreleri) - asla commit'lenmez
+application-local.properties
+src/main/resources/application-local.properties
