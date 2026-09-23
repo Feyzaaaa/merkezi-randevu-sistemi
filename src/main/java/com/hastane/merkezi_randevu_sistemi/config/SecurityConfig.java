@@ -59,6 +59,9 @@ public class SecurityConfig {
                 // Doktor Portalı: sadece DOCTOR rolü kendi hasta listesini görebilir ve vaka notu girebilir
                 .requestMatchers("/api/appointments/doctor/**").hasRole("DOCTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/note").hasRole("DOCTOR")
+                // Randevu durumu (onayla/tamamla): yalnızca doktor, üstelik kendi randevusu için
+                .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/confirm").hasRole("DOCTOR")
+                .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/complete").hasRole("DOCTOR")
 
                 // --- ORTAK / HASTA YETKİLERİ ---
                 // Randevu iptali: hasta ve doktor kendi randevusunu, yönetici ise denetim amacıyla her randevuyu iptal edebilir

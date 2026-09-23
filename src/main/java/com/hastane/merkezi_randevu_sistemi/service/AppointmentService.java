@@ -8,6 +8,7 @@ import com.hastane.merkezi_randevu_sistemi.repository.DoctorLeaveRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.rules.AppointmentScheduleRules;
+import com.hastane.merkezi_randevu_sistemi.rules.AppointmentStatusRules;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -159,6 +160,22 @@ public class AppointmentService {
 
     public List<Appointment> getAppointmentsByPatient(Long patientId) {
         return appointmentRepository.findByPatientId(patientId);
+    }
+
+    /**
+     * Randevunun durumunu değiştirir (onayla / tamamla). Geçiş, durum makinesine
+     * ve zaman mantığına göre denetlenir; uygun değilse işlem yapılmaz.
+     */
+    public Appointment updateStatus(Long appointmentId, AppointmentStatus target) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + appointmentId));
+
+        AppointmentStatusRules.validateTransition(
+                        appointment.getStatus(), target, appointment.getAppointmentDate(), LocalDateTime.now())
+                .ifPresent(hata -> { throw new IllegalArgumentException(hata); });
+
+        appointment.setStatus(target);
+        return appointmentRepository.save(appointment);
     }
 
     public Appointment saveClinicalNote(Long appointmentId, String note) {

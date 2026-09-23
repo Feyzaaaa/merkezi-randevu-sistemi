@@ -1,6 +1,7 @@
 package com.hastane.merkezi_randevu_sistemi.controller;
 import com.hastane.merkezi_randevu_sistemi.dto.ClinicalNoteRequest;
 import com.hastane.merkezi_randevu_sistemi.model.Appointment;
+import com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.service.AppointmentService;
@@ -79,6 +80,33 @@ public class AppointmentController {
             }
             Appointment updated = appointmentService.saveClinicalNote(id, request.getNote());
             return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Doktor kendi randevusunu onaylar (PENDING -> CONFIRMED)
+    @PatchMapping("/{id}/confirm")
+    public ResponseEntity<?> confirmAppointment(@PathVariable Long id, Authentication authentication) {
+        return changeStatus(id, AppointmentStatus.CONFIRMED, authentication);
+    }
+
+    // Doktor muayeneyi tamamlandı olarak işaretler (PENDING/CONFIRMED -> COMPLETED)
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<?> completeAppointment(@PathVariable Long id, Authentication authentication) {
+        return changeStatus(id, AppointmentStatus.COMPLETED, authentication);
+    }
+
+    // Durum değişikliği yalnızca randevunun sahibi doktor tarafından yapılabilir
+    private ResponseEntity<?> changeStatus(Long id, AppointmentStatus target, Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        try {
+            Appointment appointment = appointmentService.getById(id);
+            if (appointment.getDoctor() == null || appointment.getDoctor().getUser() == null
+                    || !appointment.getDoctor().getUser().getId().equals(current.getUserId())) {
+                return ResponseEntity.status(403).body("Sadece kendi randevunuzun durumunu değiştirebilirsiniz!");
+            }
+            return ResponseEntity.ok(appointmentService.updateStatus(id, target));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
