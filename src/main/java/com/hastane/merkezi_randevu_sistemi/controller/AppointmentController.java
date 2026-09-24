@@ -6,6 +6,7 @@ import com.hastane.merkezi_randevu_sistemi.model.AuditAction;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.service.AppointmentService;
+import com.hastane.merkezi_randevu_sistemi.disruption.ScheduleDisruptionService;
 import com.hastane.merkezi_randevu_sistemi.optimization.AppointmentOptimizer;
 import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,9 @@ public class AppointmentController {
 
     @Autowired
     private AppointmentOptimizer appointmentOptimizer;
+
+    @Autowired
+    private ScheduleDisruptionService disruptionService;
 
     @PostMapping
     public ResponseEntity<?> createAppointment(@RequestBody Appointment appointment, Authentication authentication) {
@@ -186,5 +190,39 @@ public class AppointmentController {
             return ResponseEntity.status(403).body("Sadece kendiniz için öneri alabilirsiniz!");
         }
         return ResponseEntity.ok(appointmentOptimizer.onerileriHesapla(patientId, departmentId));
+    }
+
+    // --- YENİDEN PLANLAMA ÖNERİLERİ ---
+    // Programı bozulan randevular sessizce taşınmaz: hastaya bir slot rezerve
+    // edilir ve onayı istenir. Hasta reddederse rezervasyon serbest kalır.
+
+    @GetMapping("/proposals")
+    public ResponseEntity<?> onerileriListele(@RequestParam Long patientId, Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        if (!patientId.equals(current.getUserId())) {
+            return ResponseEntity.status(403).body("Sadece kendi önerilerinizi görebilirsiniz!");
+        }
+        return ResponseEntity.ok(disruptionService.hastaninOnerileri(patientId));
+    }
+
+    @PatchMapping("/proposals/{proposalId}/accept")
+    public ResponseEntity<?> oneriyiKabulEt(@PathVariable Long proposalId, Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        try {
+            return ResponseEntity.ok(disruptionService.oneriyiKabulEt(proposalId, current.getUserId()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/proposals/{proposalId}/reject")
+    public ResponseEntity<?> oneriyiReddet(@PathVariable Long proposalId, Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        try {
+            disruptionService.oneriyiReddet(proposalId, current.getUserId());
+            return ResponseEntity.ok("Öneri reddedildi; ayrılan saat serbest bırakıldı.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

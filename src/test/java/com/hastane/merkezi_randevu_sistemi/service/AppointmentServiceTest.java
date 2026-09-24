@@ -4,6 +4,7 @@ import com.hastane.merkezi_randevu_sistemi.model.*;
 import com.hastane.merkezi_randevu_sistemi.repository.AppointmentRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorLeaveRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
+import com.hastane.merkezi_randevu_sistemi.repository.RescheduleProposalRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.rules.AppointmentScheduleRules;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,8 @@ class AppointmentServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private DoctorRepository doctorRepository;
     @Mock private DoctorLeaveRepository doctorLeaveRepository;
+    // R11: rezerve slot kontrolü için servise eklenen bağımlılık
+    @Mock private RescheduleProposalRepository rescheduleProposalRepository;
     @Mock private EmailService emailService;
 
     @InjectMocks private AppointmentService appointmentService;
@@ -80,6 +83,10 @@ class AppointmentServiceTest {
         when(appointmentRepository.existsByPatientIdAndAppointmentDateAndStatusNot(anyLong(), any(), any()))
                 .thenReturn(false);
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+        // Varsayılan: hiçbir slot rezerve değil
+        when(rescheduleProposalRepository.slotRezerveMi(anyLong(), any(), any(), any())).thenReturn(false);
+        when(rescheduleProposalRepository.findAktifRezervasyonlar(anyLong(), any(), any(), any()))
+                .thenReturn(java.util.List.of());
         when(userRepository.findById(HASTA_ID)).thenReturn(Optional.of(hasta()));
     }
 

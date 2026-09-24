@@ -6,6 +6,7 @@ import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.repository.AppointmentRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorLeaveRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
+import com.hastane.merkezi_randevu_sistemi.repository.RescheduleProposalRepository;
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.rules.AppointmentScheduleRules;
 import com.hastane.merkezi_randevu_sistemi.rules.AppointmentStatusRules;
@@ -41,6 +42,9 @@ public class AppointmentService {
 
     @Autowired
     private DoctorLeaveRepository doctorLeaveRepository;
+
+    @Autowired
+    private RescheduleProposalRepository rescheduleProposalRepository;
 
     private String doctorDisplayName(Doctor doctor) {
         if (doctor == null || doctor.getUser() == null) return "doktorunuz";
@@ -93,6 +97,13 @@ public class AppointmentService {
         if (appointmentRepository.countActiveAppointments(patientId, LocalDateTime.now())
                 >= AppointmentScheduleRules.MAX_ACTIVE_APPOINTMENTS) {
             throw new IllegalArgumentException(AppointmentScheduleRules.Violation.ACTIVE_LIMIT_REACHED.toUserMessage());
+        }
+
+        // R11: Bu slot, programı bozulan başka bir hastaya rezerve edilmiş olabilir.
+        // Kendi rezervasyonu olan hasta kendi slotunu kullanabilir (öneriyi kabul etme yolu).
+        if (rescheduleProposalRepository.slotRezerveMi(
+                doctorId, requested, LocalDateTime.now(), patientId)) {
+            throw new IllegalArgumentException(AppointmentScheduleRules.Violation.SLOT_RESERVED.toUserMessage());
         }
 
         // 4. Doktor Çakışma Kontrolü (iptal edilmiş randevular çakışma sayılmaz)
@@ -254,6 +265,11 @@ public class AppointmentService {
                 bookedStartTimes.add(appointment.getAppointmentDate().toLocalTime().toString());
             }
         }
+        // R11: başka hastaya rezerve edilmiş slotlar da dolu sayılır
+        rescheduleProposalRepository
+                .findAktifRezervasyonlar(doctorId, date.atStartOfDay(), date.atTime(LocalTime.MAX), now)
+                .forEach(p -> bookedStartTimes.add(p.getProposedDate().toLocalTime().toString()));
+
         allSlots.removeIf(slot -> bookedStartTimes.contains(slot.split(" - ")[0]));
 
         return allSlots;

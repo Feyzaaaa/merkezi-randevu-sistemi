@@ -33,3 +33,9 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at timestamp;
 -- CLINICAL_ACCESS_GRANTED) insert kısıta takılır ve denetim kaydı SESSİZCE kaybolur.
 -- Geçerliliği uygulama katmanındaki enum zaten garanti ettiği için kısıt kaldırılır.
 ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_action_check;
+
+-- Aynı slot için iki aktif rezervasyon olamaz (kural R11'in veritabanı garantisi).
+-- Kısmi index: yalnızca BEKLEMEDEki öneriler slot bloklar.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_proposal_slot_pending
+    ON reschedule_proposals (doctor_id, proposed_date)
+    WHERE status = 'PENDING';

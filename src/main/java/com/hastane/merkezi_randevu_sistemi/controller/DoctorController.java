@@ -1,5 +1,8 @@
 package com.hastane.merkezi_randevu_sistemi.controller;
 
+import com.hastane.merkezi_randevu_sistemi.disruption.DisruptionPlan;
+import com.hastane.merkezi_randevu_sistemi.disruption.ScheduleDisruptionService;
+import com.hastane.merkezi_randevu_sistemi.dto.DisruptionRequest;
 import com.hastane.merkezi_randevu_sistemi.dto.LeaveRequest;
 import com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus;
 import com.hastane.merkezi_randevu_sistemi.model.Doctor;
@@ -25,6 +28,9 @@ public class DoctorController {
 
     @Autowired
     private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private ScheduleDisruptionService disruptionService;
 
     // Bu doktor kaydı giriş yapan kullanıcıya mı ait? (izin günleri kendi kaydı için yönetilir)
     private boolean isOwnDoctorRecord(Long doctorId, Authentication authentication) {
@@ -104,5 +110,56 @@ public class DoctorController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    // --- PROGRAM BOZULMASI (Schedule Disruption) ---
+    // İzin ucu, o günde randevu varsa işlemi reddeder ve sorumluluğu kullanıcıya
+    // bırakır. Bu uçlar bozulmayı sistemin çözmesini sağlar: mevcut plan mümkün
+    // olduğunca korunarak etkilenen randevulara alternatif üretilir.
+
+    /** Sonucu HESAPLAR, uygulamaz: doktor kararını görerek verir */
+    @PostMapping("/{doctorId}/disruptions/preview")
+    public ResponseEntity<?> bozulmaOnizle(@PathVariable Long doctorId,
+                                           @RequestBody DisruptionRequest request,
+                                           Authentication authentication) {
+        if (!isOwnDoctorRecord(doctorId, authentication)) {
+            return ResponseEntity.status(403).body("Yalnızca kendi programınız için işlem yapabilirsiniz!");
+        }
+        try {
+            return ResponseEntity.ok(disruptionService.onizle(
+                    doctorId, LocalDate.parse(request.getDate()), gerekce(request), request.getBudget()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().body("Geçersiz tarih biçimi! (yyyy-AA-gg bekleniyor)");
+        }
+    }
+
+    /** Planı uygular ve o gün için izin kaydı oluşturur */
+    @PostMapping("/{doctorId}/disruptions/apply")
+    public ResponseEntity<?> bozulmaUygula(@PathVariable Long doctorId,
+                                           @RequestBody DisruptionRequest request,
+                                           Authentication authentication) {
+        if (!isOwnDoctorRecord(doctorId, authentication)) {
+            return ResponseEntity.status(403).body("Yalnızca kendi programınız için işlem yapabilirsiniz!");
+        }
+        try {
+            LocalDate gun = LocalDate.parse(request.getDate());
+            DisruptionPlan plan = disruptionService.onizle(doctorId, gun, gerekce(request), request.getBudget());
+            disruptionService.uygula(plan);
+
+            // Randevular çözüldüğüne göre o gün artık izinli olarak işaretlenebilir
+            doctorService.addLeave(doctorId, gun, gerekce(request), false);
+            return ResponseEntity.ok(plan);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().body("Geçersiz tarih biçimi! (yyyy-AA-gg bekleniyor)");
+        }
+    }
+
+    private static String gerekce(DisruptionRequest request) {
+        return request.getReason() == null || request.getReason().isBlank()
+                ? "Doktorun programında değişiklik" : request.getReason().trim();
     }
 }

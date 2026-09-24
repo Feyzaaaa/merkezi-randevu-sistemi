@@ -3,7 +3,7 @@
 Bu belge, jüri önünde sistemi adım adım nasıl göstereceğini anlatır. Her adımda
 üç şey var: **ne yapacaksın**, **ne görülecek**, **hangi iddiayı kanıtlıyor**.
 
-Toplam süre: yaklaşık **17–20 dakika**.
+Toplam süre: yaklaşık **20–23 dakika**.
 
 ---
 
@@ -200,6 +200,49 @@ bekleme varyansı ve iptal riski.
 
 ---
 
+### 5d. ⭐ Program bozulması: planı koruyarak çözmek · 3 dk
+
+**Anlat:** Şimdiye kadar gösterdiğim çakışma yönetimi, randevu **alınırken** doğan
+çakışmaları önlüyordu. Peki plan kurulduktan **sonra** doktor hastalanırsa?
+Sistemin ilk hâlinde izin ucu şunu diyordu: *"Bu günde randevulu hastanız var.
+Önce randevuları iptal edin."* Yani sorumluluğu kullanıcıya atıyordu.
+
+**Yap:** Terminalde politika karşılaştırmasını çalıştır:
+
+```bash
+./mvnw test -Dtest=DisruptionPolicyExperimentTest
+```
+
+**Görülecek:**
+
+```
+POLİTİKA                  ÇÖZÜLEN  EK RAHATSIZ  ORT. KAYMA  KARARLILIK
+Toplu iptal (referans)          0            -           -           -
+Minimal müdahale (K=0)         12            0     41,0 sa       97,0%
+Kademeli (K=3)                 15            3     32,8 sa       96,2%
+Kademeli (K=6)                 18            6     27,3 sa       95,5%
+Kademeli (K=12)                24           12     20,5 sa       94,0%
+```
+
+**Kanıtladığı:** Bozulmayı çözmenin tek bir doğru yolu yok; bir **ödünleşim** var.
+Bütçe arttıkça hastalar eski saatlerine yakınlaşıyor (41 → 20.5 saat) ama
+rahatsız edilen hasta sayısı 0'dan 12'ye çıkıyor ve plan kararlılığı düşüyor.
+
+**Sonra:** Hasta portalında öneri kartını göster — randevu sessizce taşınmıyor,
+hastaya slot rezerve edilip onayı isteniyor.
+
+> **Söylenecek cümle:** "Burada iki tasarım kararı var. Birincisi, randevuyu
+> hastanın haberi olmadan taşımıyorum: eski randevu iptal ediliyor, yeni saat
+> rezerve edilip onayı isteniyor. İkincisi, kademeli taşımayı sınırsız
+> bırakmıyorum — çünkü 'masum' bir hastayı kaydırmak onu da aynı süreçten
+> geçirmek demek. Bütçe bu bedeli görünür kılıyor."
+
+> **Soru gelirse — "Rezerve edilen slotu başkası alabilir mi?"**
+> Hayır, bu R11 kuralı. Hem uygulama katmanında hem de veritabanında kısmi
+> unique index ile korunuyor: bozulmayı çözerken yeni bir çakışma üretmemek için.
+
+---
+
 ### 6. Doktor portalı: izin günü ve durum akışı · 2 dk
 
 **Yap:** Çıkış yap, doktor olarak gir.
@@ -353,7 +396,7 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 239, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 244, Failures: 0, Errors: 0`
 
 Bunların 112'si yetki matrisi kontrolüdür: 28 uç nokta, dört aktörle
 (kimliksiz · hasta · doktor · yönetici) tek tek denenir. İstersen tek başına
@@ -402,7 +445,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-239 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+244 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---

@@ -245,6 +245,7 @@ Kural kataloğu: `rules/AppointmentScheduleRules.java`
 | **R8** | Aynı gün aynı poliklinikten ikinci randevu | Servis (veri gerektirir) |
 | **R9** | Hasta başına en fazla 5 aktif randevu | Servis (veri gerektirir) |
 | **R10** | Randevuya 1 saatten az kala hasta iptali | Servis (veri gerektirir) |
+| **R11** | Başka hastaya rezerve edilmiş slot (program bozulması) | Servis + veritabanı index'i |
 
 Ayrıca **aynı saat çakışması** üç katmanda önlenir:
 
@@ -388,6 +389,91 @@ mhrs.optimizasyon.asiri-yuk-cezasi=2.0
 
 ---
 
+---
+
+## Program bozulması yönetimi (Schedule Disruption)
+
+Çakışma yönetiminin ikinci yarısıdır. Kural katmanı randevu **alınırken** doğan
+çakışmaları önler; bu bölüm plan kurulduktan **sonra** dışarıdan gelen bozulmayı
+çözer: doktor hastalandı, acil görevlendirildi, izin aldı.
+
+> Birleştiren ilke: *bir çakışma, ister randevu alınırken ister sonradan ortaya
+> çıksın aynı kural kümesiyle çözülür; fark, sonradan çıkan çakışmada **mevcut
+> planı koruma** kısıtının da devreye girmesidir.*
+
+Sistemin ilk hâlinde bu durum yönetilmiyordu: izin ucu, o günde randevu varsa
+işlemi reddedip sorumluluğu kullanıcıya bırakıyordu (*"Önce randevuları iptal
+edin"*).
+
+### Minimal müdahale ilkesi
+
+Bozulmayı çözerken mevcut plan mümkün olduğunca korunur. Optimizasyon motorunun
+maliyet fonksiyonuna bir **kayma** terimi eklenir:
+
+```
+Maliyet = Bekleme + Doluluk + |yeni zaman − eski zaman| × kaymaAgirligi
+```
+
+Alternatifler **aynı poliklinikten** seçilir: hasta yanlış uzmanlığa yönlendirilemez.
+
+### Hasta özerkliği — öneri ve rezervasyon
+
+Randevular sessizce taşınmaz. Doktor o gün bulunmayacağı için eski randevu iptal
+edilir, hastaya bir slot **rezerve edilir** ve onayı istenir. Hasta kabul ederse
+yeni randevu oluşur; reddeder veya süre dolarsa rezervasyon serbest kalır.
+
+Bu, kural kataloğuna yeni bir madde ekler:
+
+| Kod | Senaryo |
+|---|---|
+| **R11** | Programı değişen başka bir hastaya **rezerve edilmiş slot** başkasına verilemez |
+
+Rezervasyon hem uygulama katmanında hem de veritabanında (kısmi unique index)
+korunur — bozulmayı çözerken yeni bir çakışma üretmemek için.
+
+### Bozulma bütçesi (kademeli taşıma)
+
+Etkilenen hastanın en uygun slotu doluysa, oradaki randevu da taşınabilir. Ancak
+bu bozulmayı **yaymak** demektir: kaydırılan hasta da iptal + öneri sürecinden
+geçer. Bu yüzden *"en fazla K randevuya dokun"* bütçesiyle sınırlanır ve zincir
+**tek seviyede** kesilir — taşınan randevu yalnızca boş bir slota gidebilir,
+üçüncü bir hastayı rahatsız edemez.
+
+### Ölçülmüş sonuç: politika karşılaştırması
+
+12 randevuluk bir gün iptal edildiğinde, aynı senaryo farklı bütçelerle çözüldü:
+
+| Politika | Çözülen | Ek rahatsız edilen | Ortalama kayma | Kararlılık |
+|---|---:|---:|---:|---:|
+| Toplu iptal (sistemin ilk hâli) | 0 | – | – | – |
+| **Minimal müdahale (K=0)** | 12 | **0** | 41.0 saat | **%97.0** |
+| Kademeli (K=3) | 15 | 3 | 32.8 saat | %96.2 |
+| Kademeli (K=6) | 18 | 6 | 27.3 saat | %95.5 |
+| Kademeli (K=12) | 24 | 12 | **20.5 saat** | %94.0 |
+
+**Yorum:** Bütçe arttıkça etkilenen hastalar eski saatlerine daha yakın slotlara
+yerleşiyor (41 → 20.5 saat), fakat bunun bedeli var: rahatsız edilen hasta sayısı
+0'dan 12'ye çıkıyor ve plan kararlılığı %97'den %94'e düşüyor. *Daha iyi bir
+yerleşim uğruna kaç hastayı rahatsız etmeye değer* sorusunun sayısal karşılığı budur.
+
+```bash
+./mvnw test -Dtest=DisruptionPolicyExperimentTest
+```
+
+### Uçlar
+
+| Uç | Kim | Ne yapar |
+|---|---|---|
+| `POST /api/doctors/{id}/disruptions/preview` | DOCTOR | Sonucu hesaplar, **uygulamaz** |
+| `POST /api/doctors/{id}/disruptions/apply` | DOCTOR | Planı tek işlemde uygular, izin kaydı açar |
+| `GET /api/appointments/proposals` | PATIENT | Kendisine yapılan önerileri listeler |
+| `PATCH /api/appointments/proposals/{id}/accept` · `/reject` | PATIENT | Öneriyi yanıtlar |
+
+Önizleme ayrı bir uçtur: doktor, *"23 randevunuz var, 19'u taşınabiliyor"* bilgisini
+görmeden karar vermek zorunda kalmaz.
+
+---
+
 ### Randevu durum akışı
 
 ```
@@ -423,6 +509,7 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `CancellationRiskModelTest` | 7 | Lojistik regresyonun davranışı ve soğuk başlangıç |
 | `OptimizerScenarioTest` | 4 | Motorun hedef dolulukta doktoru seçmesi, çeşitlilik, riskli hasta |
 | `ClinicalAccessPolicyTest` | 14 | Bağlam koşulları, sınır değerler ve acil erişim davranışı |
+| `DisruptionPolicyExperimentTest` | 5 | Bozulma bütçesi eğrisi, minimal müdahale, R11 rezervasyonu |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
@@ -452,6 +539,7 @@ security/    JwtUtil, JwtAuthenticationFilter, AuthenticatedUser
 rules/       AppointmentScheduleRules, AppointmentStatusRules, PasswordPolicy
 optimization/ AppointmentOptimizer, CancellationRiskModel, OptimizationWeights, SlotScore
 policy/      ClinicalAccessPolicy, ClinicalAccessProperties
+disruption/  ScheduleDisruptionService, DisruptionPlan
 controller/  REST uçları — rol ve sahiplik kontrolleri burada
 service/     İş kuralları
 repository/  JPA sorguları

@@ -51,7 +51,13 @@ public final class AppointmentScheduleRules {
         DOCTOR_ON_LEAVE("R7", "Seçtiğiniz doktor bu tarihte izinli! Lütfen başka bir gün veya doktor seçin."),
         SAME_DAY_SAME_DEPARTMENT("R8", "Aynı gün aynı poliklinikten ikinci bir randevu alamazsınız!"),
         ACTIVE_LIMIT_REACHED("R9", "En fazla " + MAX_ACTIVE_APPOINTMENTS + " aktif randevunuz olabilir. Yeni randevu için mevcut randevularınızdan birini iptal edin."),
-        CANCELLATION_TOO_LATE("R10", "Randevunuza " + CANCELLATION_NOTICE_HOURS + " saatten az kaldığı için iptal edemezsiniz. Lütfen hastaneyi arayın.");
+        CANCELLATION_TOO_LATE("R10", "Randevunuza " + CANCELLATION_NOTICE_HOURS + " saatten az kaldığı için iptal edemezsiniz. Lütfen hastaneyi arayın."),
+
+        /**
+         * Program bozulması sonucu başka bir hastaya rezerve edilmiş slot.
+         * Bozulmayı çözerken yeni bir çakışma üretmemek için gereklidir.
+         */
+        SLOT_RESERVED("R11", "Bu saat, programı değişen başka bir hasta için geçici olarak ayrılmış. Lütfen farklı bir saat seçin.");
 
         private final String code;
         private final String message;

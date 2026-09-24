@@ -57,6 +57,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/doctors/by-user/**").hasRole("DOCTOR")
                 // İzin/görev günleri: doktor yalnızca kendi kaydı için yönetir (sahiplik controller'da)
                 .requestMatchers("/api/doctors/*/leaves/**").hasRole("DOCTOR")
+                // Program bozulması: doktor kendi programı için önizler ve uygular
+                .requestMatchers("/api/doctors/*/disruptions/**").hasRole("DOCTOR")
                 .requestMatchers("/api/doctors/*/leaves").hasRole("DOCTOR")
                 // Doktor Portalı: sadece DOCTOR rolü kendi hasta listesini görebilir ve vaka notu girebilir
                 .requestMatchers("/api/appointments/doctor/**").hasRole("DOCTOR")
@@ -72,6 +74,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/appointments/patient/**").hasRole("PATIENT")
                 // Optimizasyon motoru önerileri: hasta kendisi için ister (sahiplik controller'da)
                 .requestMatchers(HttpMethod.GET, "/api/appointments/recommendations").hasRole("PATIENT")
+                // Yeniden planlama önerileri: hasta kendi önerilerini görür ve yanıtlar
+                .requestMatchers("/api/appointments/proposals/**").hasRole("PATIENT")
+                .requestMatchers(HttpMethod.GET, "/api/appointments/proposals").hasRole("PATIENT")
                 .requestMatchers(HttpMethod.POST, "/api/appointments").hasRole("PATIENT")
                 // Hasta Profili (boy/kilo/yaş/cinsiyet/kan grubu/alerji/iletişim): sadece PATIENT
                 .requestMatchers("/api/patient-profiles/**").hasRole("PATIENT")
