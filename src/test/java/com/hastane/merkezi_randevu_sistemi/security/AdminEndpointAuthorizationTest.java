@@ -5,6 +5,7 @@ import com.hastane.merkezi_randevu_sistemi.controller.AdminController;
 import com.hastane.merkezi_randevu_sistemi.model.Role;
 import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.service.AdminService;
+import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,8 +40,9 @@ class AdminEndpointAuthorizationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtUtil jwtUtil;
 
-    // Yetkilendirme sınanıyor, iş mantığı değil: servis taklit ediliyor
+    // Yetkilendirme sınanıyor, iş mantığı değil: servisler taklit ediliyor
     @MockitoBean private AdminService adminService;
+    @MockitoBean private AuditService auditService;
 
     private String token(Long id, String email, Role rol) {
         User user = new User();

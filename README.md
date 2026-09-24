@@ -89,8 +89,38 @@ sahibiyle karşılaştırır.
 | `GET /api/admin/stats` · `/users` · `/appointments` | ❌ | ❌ | ✅ |
 | `PATCH /api/admin/users/{id}/role` | ❌ | ❌ | ✅ |
 | `POST /api/admin/doctors` · `/departments` | ❌ | ❌ | ✅ |
+| `GET /api/admin/audit-logs` | ❌ | ❌ | ✅ |
 
 \* Hasta iptali için R10 (iptal penceresi) kuralı geçerlidir.
+
+### Kimlik doğrulama güvenliği
+
+| Önlem | Değer | Nerede |
+|---|---|---|
+| Şifre politikası (kayıtta) | en az 8 karakter, harf + rakam, yaygın şifre listesi | `rules/PasswordPolicy` |
+| Kaba kuvvet koruması | 5 ardışık hatalı denemede 15 dakika kilit | `service/LoginAttemptService` |
+| Kullanıcı sayımına karşı | kayıtlı olmayan e-posta da "e-posta veya şifre hatalı" döner | `UserController` |
+| Şifre saklama | BCrypt | `SecurityConfig` |
+
+Kilit sayacı **veritabanında** tutulur; sunucu yeniden başlasa bile kilit sürer
+(bellekte tutulsaydı yeniden başlatma saldırgan için bir kaçış yolu olurdu).
+Kilit kalıcı değildir: süresi dolunca hesap kendiliğinden açılır — kalıcı kilit,
+saldırganın başkasının hesabını bilerek kilitlemesine yol açardı.
+
+### Denetim kaydı (audit log)
+
+Yetkilendirmeyi ilgilendiren işlemler iz bırakır: **kim, ne zaman, neyi, hangi
+adresten**. `GET /api/admin/audit-logs` yalnızca ADMIN rolüne açıktır ve
+yalnızca okunur — kayıtları silen ya da değiştiren bir uç bilinçli olarak
+tanımlanmamıştır; aksi hâlde izin kendisi değiştirilebilir olur ve denetim
+değerini yitirirdi.
+
+İzlenen olaylar: başarılı/başarısız giriş, hesap kilitlenmesi, yeni kayıt,
+**rol değişikliği**, doktor ve poliklinik tanımlama, randevu iptali ve durum
+değişikliği.
+
+Bu, rol tabanlı yetkilendirmenin tamamlayıcı yarısıdır: "kim neyi yapabilir"
+sorusunu erişim matrisi yanıtlar, "kim neyi yaptı" sorusunu ise yalnızca iz kaydı.
 
 ### Rol yönetimi tutarlılık kuralları
 
@@ -154,6 +184,8 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `AppointmentStatusRulesTest` | 10 | Durum makinesindeki tüm geçişler |
 | `AdminServiceTest` | 10 | Rol yönetimi tutarlılık kuralları |
 | `AdminEndpointAuthorizationTest` | 6 | Gerçek JWT ile 401/403/200 ayrımı |
+| `PasswordPolicyTest` | 13 | Kabul/ret edilen şifre biçimleri |
+| `LoginAttemptServiceTest` | 7 | Kilitlenme eşiği ve kilidin süreyle açılması |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
@@ -166,7 +198,7 @@ bağımsızdır.
 ```
 config/      SecurityConfig (yetki kuralları), WebConfig, DataLoader
 security/    JwtUtil, JwtAuthenticationFilter, AuthenticatedUser
-rules/       AppointmentScheduleRules, AppointmentStatusRules
+rules/       AppointmentScheduleRules, AppointmentStatusRules, PasswordPolicy
 controller/  REST uçları — rol ve sahiplik kontrolleri burada
 service/     İş kuralları
 repository/  JPA sorguları

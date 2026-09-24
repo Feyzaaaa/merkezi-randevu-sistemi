@@ -2,10 +2,13 @@ package com.hastane.merkezi_randevu_sistemi.controller;
 import com.hastane.merkezi_randevu_sistemi.dto.ClinicalNoteRequest;
 import com.hastane.merkezi_randevu_sistemi.model.Appointment;
 import com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus;
+import com.hastane.merkezi_randevu_sistemi.model.AuditAction;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.service.AppointmentService;
+import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,6 +27,9 @@ public class AppointmentController {
 
     @Autowired
     private DoctorRepository doctorRepository;
+
+    @Autowired
+    private AuditService auditService;
 
     @PostMapping
     public ResponseEntity<?> createAppointment(@RequestBody Appointment appointment, Authentication authentication) {
@@ -87,18 +93,21 @@ public class AppointmentController {
 
     // Doktor kendi randevusunu onaylar (PENDING -> CONFIRMED)
     @PatchMapping("/{id}/confirm")
-    public ResponseEntity<?> confirmAppointment(@PathVariable Long id, Authentication authentication) {
-        return changeStatus(id, AppointmentStatus.CONFIRMED, authentication);
+    public ResponseEntity<?> confirmAppointment(@PathVariable Long id, Authentication authentication,
+                                                HttpServletRequest httpRequest) {
+        return changeStatus(id, AppointmentStatus.CONFIRMED, authentication, httpRequest);
     }
 
     // Doktor muayeneyi tamamlandı olarak işaretler (PENDING/CONFIRMED -> COMPLETED)
     @PatchMapping("/{id}/complete")
-    public ResponseEntity<?> completeAppointment(@PathVariable Long id, Authentication authentication) {
-        return changeStatus(id, AppointmentStatus.COMPLETED, authentication);
+    public ResponseEntity<?> completeAppointment(@PathVariable Long id, Authentication authentication,
+                                                 HttpServletRequest httpRequest) {
+        return changeStatus(id, AppointmentStatus.COMPLETED, authentication, httpRequest);
     }
 
     // Durum değişikliği yalnızca randevunun sahibi doktor tarafından yapılabilir
-    private ResponseEntity<?> changeStatus(Long id, AppointmentStatus target, Authentication authentication) {
+    private ResponseEntity<?> changeStatus(Long id, AppointmentStatus target,
+                                           Authentication authentication, HttpServletRequest httpRequest) {
         AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
         try {
             Appointment appointment = appointmentService.getById(id);
@@ -106,7 +115,10 @@ public class AppointmentController {
                     || !appointment.getDoctor().getUser().getId().equals(current.getUserId())) {
                 return ResponseEntity.status(403).body("Sadece kendi randevunuzun durumunu değiştirebilirsiniz!");
             }
-            return ResponseEntity.ok(appointmentService.updateStatus(id, target));
+            Appointment guncel = appointmentService.updateStatus(id, target);
+            auditService.record(current, AuditAction.APPOINTMENT_STATUS_CHANGED, "Appointment", id,
+                    appointment.getStatus() + " -> " + target, httpRequest);
+            return ResponseEntity.ok(guncel);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -114,7 +126,8 @@ public class AppointmentController {
 
     // Hasta veya Doktor kendi randevusunu, Yönetici ise denetim amacıyla her randevuyu iptal edebilir
     @PatchMapping("/{id}/cancel")
-    public ResponseEntity<?> cancelAppointment(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> cancelAppointment(@PathVariable Long id, Authentication authentication,
+                                               HttpServletRequest httpRequest) {
         AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
         try {
             Appointment appointment = appointmentService.getById(id);
@@ -130,6 +143,8 @@ public class AppointmentController {
             // R10: Son dakika iptali yalnızca hasta için engellenir; doktor ve yönetici
             // operasyonel gerekçeyle (hasta gelmedi, doktor rahatsızlandı) her an iptal edebilir.
             Appointment updated = appointmentService.cancelAppointment(id, isOwnerPatient && !isAdmin);
+            auditService.record(current, AuditAction.APPOINTMENT_CANCELLED, "Appointment", id,
+                    "İptal eden rol: " + current.getRole(), httpRequest);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
