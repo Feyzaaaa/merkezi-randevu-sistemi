@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Tüm kullanıcı listesi: kişisel veri içerdiği için sadece yönetici görebilir
                 .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+                // Kendi şifresini değiştirmek her rolün hakkıdır; kimliğin doğrulanmış olması yeter
+                .requestMatchers(HttpMethod.PATCH, "/api/users/me/password").authenticated()
                 // Sistemdeki TÜM randevular (tek hastanın değil): sadece yönetici denetimi
                 .requestMatchers(HttpMethod.GET, "/api/appointments").hasRole("ADMIN")
                 // Doktor ve poliklinik tanımlamak bir yönetim işlemidir

@@ -1,11 +1,13 @@
 package com.hastane.merkezi_randevu_sistemi.controller;
 import com.hastane.merkezi_randevu_sistemi.dto.AuthResponse;
 import com.hastane.merkezi_randevu_sistemi.dto.LoginRequest;
+import com.hastane.merkezi_randevu_sistemi.dto.PasswordChangeRequest;
 import com.hastane.merkezi_randevu_sistemi.model.AuditAction;
 import com.hastane.merkezi_randevu_sistemi.model.User;
 import com.hastane.merkezi_randevu_sistemi.model.Role; // Role enum'ını import etmeyi unutma!
 import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.rules.PasswordPolicy;
+import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.security.JwtUtil;
 import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import com.hastane.merkezi_randevu_sistemi.service.LoginAttemptService;
@@ -13,8 +15,10 @@ import com.hastane.merkezi_randevu_sistemi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -141,5 +145,61 @@ public class UserController {
                 user.getId(), user.getEmail(), user.getFirstName(),
                 user.getLastName(), user.getRole(), token);
         return ResponseEntity.ok(authResponse);
+    }
+
+    /**
+     * KULLANICININ KENDİ ŞİFRESİNİ DEĞİŞTİRMESİ
+     *
+     * Mevcut şifre sorulur: sorulmasaydı, çalınmış bir token hesabın kalıcı olarak
+     * ele geçirilmesine yeterdi (saldırgan şifreyi değiştirip sahibini dışarıda bırakırdı).
+     *
+     * Başarılı değişiklikte passwordChangedAt damgası güncellenir; JwtAuthenticationFilter
+     * bu andan önce üretilmiş tüm token'ları reddeder, yani açık oturumlar düşer.
+     */
+    @PatchMapping("/me/password")
+    public ResponseEntity<?> changeOwnPassword(@RequestBody PasswordChangeRequest request,
+                                               Authentication authentication,
+                                               HttpServletRequest httpRequest) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+
+        User user = userRepository.findById(current.getUserId()).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(404).body("Kullanıcı bulunamadı!");
+        }
+
+        if (request.getCurrentPassword() == null || request.getNewPassword() == null) {
+            return ResponseEntity.badRequest().body("Mevcut ve yeni şifre zorunludur!");
+        }
+
+        // 1. Kimlik teyidi: mevcut şifre doğru mu?
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            auditService.record(current, AuditAction.PASSWORD_CHANGE_FAILED, "User", user.getId(),
+                    "Mevcut şifre hatalı", httpRequest);
+            return ResponseEntity.badRequest().body("Mevcut şifreniz hatalı!");
+        }
+
+        // 2. Yeni şifre politikaya uyuyor mu?
+        Optional<String> policyError = PasswordPolicy.validate(request.getNewPassword());
+        if (policyError.isPresent()) {
+            return ResponseEntity.badRequest().body(policyError.get());
+        }
+
+        // 3. Yeni şifre eskisiyle aynı olmamalı
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            return ResponseEntity.badRequest().body("Yeni şifre mevcut şifrenizle aynı olamaz!");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        // Bu damgadan önce üretilmiş token'lar artık geçersiz
+        user.setPasswordChangedAt(LocalDateTime.now());
+        // Şifre değiştiren kullanıcının kilit sayacı da temizlenir
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        auditService.record(current, AuditAction.PASSWORD_CHANGED, "User", user.getId(),
+                "Şifre değiştirildi; önceki oturumlar geçersiz kılındı", httpRequest);
+
+        return ResponseEntity.ok("Şifreniz güncellendi. Güvenlik gereği tekrar giriş yapmanız gerekiyor.");
     }
 }

@@ -18,3 +18,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_appointments_patient_slot_active
 -- güvenle tekrar çalışır.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts integer NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until timestamp;
+
+-- Şifre değişikliği damgası: bu andan ÖNCE üretilmiş JWT'ler geçersiz sayılır
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamp;

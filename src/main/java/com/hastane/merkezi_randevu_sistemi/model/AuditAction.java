@@ -13,6 +13,8 @@ public enum AuditAction {
     LOGIN_FAILED("Başarısız giriş denemesi"),
     ACCOUNT_LOCKED("Hesap geçici olarak kilitlendi"),
     REGISTER("Yeni hasta kaydı"),
+    PASSWORD_CHANGED("Şifre değiştirildi"),
+    PASSWORD_CHANGE_FAILED("Hatalı mevcut şifreyle değiştirme denemesi"),
 
     ROLE_CHANGED("Kullanıcı rolü değiştirildi"),
     DOCTOR_CREATED("Doktor tanımlandı"),

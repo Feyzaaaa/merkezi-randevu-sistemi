@@ -32,6 +32,13 @@ public class User {
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 
+    // Şifrenin en son değiştirildiği an.
+    // JWT durumsuzdur: üretildikten sonra sunucuda saklanmaz ve iptal edilemez.
+    // Bu damga sayesinde, şifre değişikliğinden ÖNCE üretilmiş token'lar geçersiz
+    // sayılır; böylece şifre değiştirmek açık tüm oturumları düşürür.
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
     public User() {}
 
     // --- GETTERLAR ---
@@ -57,6 +64,9 @@ public class User {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     public LocalDateTime getLockedUntil() { return lockedUntil; }
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    public LocalDateTime getPasswordChangedAt() { return passwordChangedAt; }
+
     // --- SETTERLAR ---
     public void setId(Long id) { this.id = id; }
     public void setEmail(String email) { this.email = email; }
@@ -68,6 +78,8 @@ public class User {
     public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
 
     public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public void setPasswordChangedAt(LocalDateTime passwordChangedAt) { this.passwordChangedAt = passwordChangedAt; }
 
     // Gelen String rolü güvenli bir şekilde Enum'a çeviren akıllı setter
     public void setRole(Object role) {

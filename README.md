@@ -87,6 +87,7 @@ sahibiyle karşılaştırır.
 | `GET /api/users` · `GET /api/appointments` (tümü) | ❌ | ❌ | ✅ |
 | `POST /api/doctors` · `POST /api/departments` | ❌ | ❌ | ✅ |
 | `GET /api/admin/stats` · `/users` · `/appointments` | ❌ | ❌ | ✅ |
+| `PATCH /api/users/me/password` | ✅ kendi şifresi | ✅ | ✅ |
 | `PATCH /api/admin/users/{id}/role` | ❌ | ❌ | ✅ |
 | `POST /api/admin/doctors` · `/departments` | ❌ | ❌ | ✅ |
 | `GET /api/admin/audit-logs` | ❌ | ❌ | ✅ |
@@ -101,11 +102,29 @@ sahibiyle karşılaştırır.
 | Kaba kuvvet koruması | 5 ardışık hatalı denemede 15 dakika kilit | `service/LoginAttemptService` |
 | Kullanıcı sayımına karşı | kayıtlı olmayan e-posta da "e-posta veya şifre hatalı" döner | `UserController` |
 | Şifre saklama | BCrypt | `SecurityConfig` |
+| Şifre değiştirme | mevcut şifre teyidi + politika + eski şifreyle aynı olamaz | `UserController` |
+| Token geçersizleştirme | şifre değişince önceki tüm token'lar reddedilir | `JwtAuthenticationFilter` |
 
 Kilit sayacı **veritabanında** tutulur; sunucu yeniden başlasa bile kilit sürer
 (bellekte tutulsaydı yeniden başlatma saldırgan için bir kaçış yolu olurdu).
 Kilit kalıcı değildir: süresi dolunca hesap kendiliğinden açılır — kalıcı kilit,
 saldırganın başkasının hesabını bilerek kilitlemesine yol açardı.
+
+### Durumsuz kimlik doğrulamanın bedeli ve telafisi
+
+JWT durumsuzdur: üretildikten sonra sunucuda saklanmaz, bu yüzden **tek tek
+iptal edilemez**. Çalınmış bir token, süresi dolana kadar geçerli kalır.
+
+Sistemde iki telafi vardır:
+
+1. Token ömrü sınırlıdır (24 saat)
+2. Kullanıcı şifresini değiştirdiğinde `users.password_changed_at` damgası atılır.
+   `JwtAuthenticationFilter`, token'ın `iat` (üretim anı) değerini bu damgayla
+   karşılaştırır ve **damgadan önce üretilmiş tüm token'ları reddeder**.
+
+Böylece şifre değiştirmek, o hesapla açılmış bütün oturumları düşürür. Şifre
+değiştirirken mevcut şifrenin sorulması da bunun parçasıdır: sorulmasaydı,
+çalınmış bir token hesabın kalıcı olarak ele geçirilmesine yeterdi.
 
 ### Denetim kaydı (audit log)
 
@@ -186,12 +205,19 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `AdminEndpointAuthorizationTest` | 6 | Gerçek JWT ile 401/403/200 ayrımı |
 | `PasswordPolicyTest` | 13 | Kabul/ret edilen şifre biçimleri |
 | `LoginAttemptServiceTest` | 7 | Kilitlenme eşiği ve kilidin süreyle açılması |
+| `PasswordChangeTest` | 9 | Şifre değiştirme kuralları ve token geçersizleştirme |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
 bağımsızdır.
 
 ---
+
+## Savunma demo senaryosu
+
+`docs/savunma-senaryosu.md`: jüri önünde adım adım ne gösterileceğini, her adımın
+hangi tez iddiasını kanıtladığını, olası soruların cevaplarını ve bir şey ters
+giderse uygulanacak planı içerir.
 
 ## Tez figürleri
 

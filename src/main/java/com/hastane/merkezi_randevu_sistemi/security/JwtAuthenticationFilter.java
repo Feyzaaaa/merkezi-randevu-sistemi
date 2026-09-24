@@ -1,5 +1,6 @@
 package com.hastane.merkezi_randevu_sistemi.security;
 
+import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 // Authorization: Bearer <jwt> başlığını okuyup SecurityContext'e rolüyle birlikte kimlik doldurur
@@ -25,9 +28,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String AUTHENTICATED_ATTRIBUTE = "mhrs.authenticated";
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -43,6 +48,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = claims.getSubject();
                 String role = claims.get("role", String.class);
                 Long userId = claims.get("userId", Long.class);
+
+                // TOKEN GEÇERSİZLEŞTİRME
+                // JWT durumsuzdur: üretildikten sonra sunucuda saklanmaz, tek tek iptal edilemez.
+                // Kullanıcı şifresini değiştirdiğinde, o andan ÖNCE üretilmiş token'lar
+                // (çalınmış olabilecek eski oturumlar dahil) burada reddedilir.
+                if (tokenSifreDegisikligindenEski(userId, claims)) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 // Principal olarak sadece email değil, userId'yi de taşıyoruz ki controller'lar
                 // SAHİPLİK kontrolü yapabilsin (örn. "bu randevu gerçekten bu kullanıcıya mı ait?")
@@ -60,5 +75,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Token, kullanıcının son şifre değişikliğinden önce mi üretilmiş?
+     * Şifre hiç değiştirilmemişse (damga yok) kontrol uygulanmaz.
+     */
+    private boolean tokenSifreDegisikligindenEski(Long userId, Claims claims) {
+        if (userId == null || claims.getIssuedAt() == null) {
+            return false;
+        }
+        return userRepository.findById(userId)
+                .map(user -> {
+                    LocalDateTime degisim = user.getPasswordChangedAt();
+                    if (degisim == null) return false;
+                    LocalDateTime uretim = claims.getIssuedAt().toInstant()
+                            .atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    // JWT "iat" alanı saniye hassasiyetindedir; aynı saniyede üretilen
+                    // token'ın yanlışlıkla elenmemesi için bir saniye pay bırakıyoruz.
+                    return uretim.isBefore(degisim.minusSeconds(1));
+                })
+                .orElse(false);
     }
 }

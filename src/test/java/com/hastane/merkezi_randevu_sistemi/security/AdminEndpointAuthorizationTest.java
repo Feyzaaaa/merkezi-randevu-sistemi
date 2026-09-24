@@ -4,6 +4,7 @@ import com.hastane.merkezi_randevu_sistemi.config.SecurityConfig;
 import com.hastane.merkezi_randevu_sistemi.controller.AdminController;
 import com.hastane.merkezi_randevu_sistemi.model.Role;
 import com.hastane.merkezi_randevu_sistemi.model.User;
+import com.hastane.merkezi_randevu_sistemi.repository.UserRepository;
 import com.hastane.merkezi_randevu_sistemi.service.AdminService;
 import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,8 @@ class AdminEndpointAuthorizationTest {
     // Yetkilendirme sınanıyor, iş mantığı değil: servisler taklit ediliyor
     @MockitoBean private AdminService adminService;
     @MockitoBean private AuditService auditService;
+    // JwtAuthenticationFilter, token geçersizleştirme kontrolü için kullanıcıyı sorgular
+    @MockitoBean private UserRepository userRepository;
 
     private String token(Long id, String email, Role rol) {
         User user = new User();
