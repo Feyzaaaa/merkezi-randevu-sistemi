@@ -268,7 +268,15 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 94, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 214, Failures: 0, Errors: 0`
+
+Bunların 120'si yetki matrisi kontrolüdür: 30 uç nokta, dört aktörle
+(kimliksiz · hasta · doktor · yönetici) tek tek denenir. İstersen tek başına
+çalıştırıp ölçülen matrisi ekranda gösterebilirsin:
+
+```bash
+./mvnw test -Dtest=AuthorizationMatrixTest
+```
 
 **Anlat:** Gösterilen her kural otomatik testlerle de doğrulanıyor; zamana bağlı
 testler sabit bir referans an kullandığı için sonuçlar günün saatinden bağımsız.
@@ -309,7 +317,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-94 test: kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+214 test (120'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---

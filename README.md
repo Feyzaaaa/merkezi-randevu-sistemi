@@ -69,6 +69,13 @@ sahibiyle karşılaştırır.
 
 ### Yetki matrisi
 
+> Bu tablo elle yazılmış bir belge değildir: `AuthorizationMatrixTest`, 30 uç
+> noktanın her birini dört aktörle (kimliksiz · hasta · doktor · yönetici)
+> deneyerek **120 kontrol** yapar ve tablonun koddaki karşılığını doğrular.
+> Test, yetkilendirme sonucunu iş sonucundan ayırır: reddedilmesi beklenen
+> hücrede kodun tam olarak 401/403 olması, izin verilmesi beklenen hücrede ise
+> 401/403 **olmaması** aranır (200/400/404 fark etmez — yetki katmanı geçilmiştir).
+
 | Uç nokta | PATIENT | DOCTOR | ADMIN |
 |---|:--:|:--:|:--:|
 | `POST /api/users/register`, `/login` | açık | açık | açık |
@@ -238,6 +245,7 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `LoginAttemptServiceTest` | 7 | Kilitlenme eşiği ve kilidin süreyle açılması |
 | `PasswordChangeTest` | 9 | Şifre değiştirme kuralları ve token geçersizleştirme |
 | `ConcurrentBookingExperimentTest` | 2 | Eşzamanlı talepte veritabanı garantisinin ölçümü |
+| `AuthorizationMatrixTest` | 120 | 30 uç nokta × 4 aktör: tam yetki matrisi |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
