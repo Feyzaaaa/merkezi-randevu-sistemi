@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Şekil 4 — Randevu Durum Makinesi</title>
+<style>
+  body { margin:0; padding:28px 24px; background:#fff;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { font-size:17px; font-weight:600; color:#1f2933; margin:0 0 20px;
+        padding-bottom:10px; border-bottom:2px solid #e4e7eb; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+</style></head>
+<body>
+<h1>Şekil 4 — Randevu Durum Makinesi</h1>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; PENDING: hasta randevu alir
+
+    PENDING --&gt; CONFIRMED: doktor onaylar&lt;br/&gt;(randevu saati gecmemisse)
+    PENDING --&gt; COMPLETED: doktor dogrudan tamamlar&lt;br/&gt;(saati gecmisse)
+    CONFIRMED --&gt; COMPLETED: muayene bitti&lt;br/&gt;(saati gecmisse)
+
+    PENDING --&gt; CANCELLED: iptal
+    CONFIRMED --&gt; CANCELLED: iptal
+
+    COMPLETED --&gt; [*]
+    CANCELLED --&gt; [*]
+
+    note right of CANCELLED
+        SON DURUM
+        Geri donus yok
+        Saat yeniden musait olur
+    end note
+
+    note right of COMPLETED
+        SON DURUM
+        Saat dolu kalir
+    end note
+
+    note left of PENDING
+        Iptal yetkisi:
+        Hasta - kendi randevusu (R10: 1 saat kala iptal edemez)
+        Doktor - kendi randevusu (her an)
+        Yonetici - tum randevular (her an)
+    end note
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad:true, theme:'base', securityLevel:'loose',
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+                      primaryColor:'#eef2f7', primaryBorderColor:'#8fa3b8', lineColor:'#64748b' } });
+</script>
+</body></html>

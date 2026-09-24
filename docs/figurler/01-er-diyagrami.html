@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Şekil 1 — Veritabanı Varlık-İlişki Diyagramı</title>
+<style>
+  body { margin:0; padding:28px 24px; background:#fff;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { font-size:17px; font-weight:600; color:#1f2933; margin:0 0 20px;
+        padding-bottom:10px; border-bottom:2px solid #e4e7eb; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+</style></head>
+<body>
+<h1>Şekil 1 — Veritabanı Varlık-İlişki Diyagramı</h1>
+<pre class="mermaid">erDiagram
+    USERS ||--o| PATIENT_PROFILES : &quot;saglik profili&quot;
+    USERS ||--o{ APPOINTMENTS : &quot;hasta olarak alir&quot;
+    USERS ||--o{ LAB_RESULTS : &quot;tahlil sonucu&quot;
+    USERS ||--o| DOCTORS : &quot;doktor kaydi&quot;
+    USERS ||--o{ AUDIT_LOGS : &quot;islem izi&quot;
+    DEPARTMENTS ||--o{ DOCTORS : &quot;poliklinik&quot;
+    DOCTORS ||--o{ APPOINTMENTS : &quot;randevu verir&quot;
+    DOCTORS ||--o{ DOCTOR_LEAVES : &quot;izin gunu&quot;
+
+    USERS {
+        bigint id PK
+        varchar email UK &quot;benzersiz&quot;
+        varchar password &quot;BCrypt&quot;
+        varchar first_name
+        varchar last_name
+        varchar role &quot;PATIENT / DOCTOR / ADMIN&quot;
+        int failed_login_attempts &quot;kaba kuvvet sayaci&quot;
+        timestamp locked_until &quot;gecici kilit&quot;
+    }
+    DEPARTMENTS {
+        bigint id PK
+        varchar name UK &quot;poliklinik adi&quot;
+    }
+    DOCTORS {
+        bigint id PK
+        bigint user_id FK
+        bigint department_id FK
+        varchar title &quot;unvan&quot;
+    }
+    DOCTOR_LEAVES {
+        bigint id PK
+        bigint doctor_id FK
+        date leave_date &quot;R7 kurali&quot;
+        varchar reason
+    }
+    APPOINTMENTS {
+        bigint id PK
+        bigint patient_id FK
+        bigint doctor_id FK
+        timestamp appointment_date &quot;kismi unique index&quot;
+        varchar status &quot;PENDING/CONFIRMED/COMPLETED/CANCELLED&quot;
+        text complaint
+        text note &quot;vaka notu&quot;
+    }
+    PATIENT_PROFILES {
+        bigint id PK
+        bigint user_id FK
+        int height
+        double weight
+        int age
+        varchar gender
+        varchar blood_type
+        text allergies
+        varchar phone
+    }
+    LAB_RESULTS {
+        bigint id PK
+        bigint patient_id FK
+        varchar test_name
+        varchar result
+        varchar reference_range
+        date test_date
+    }
+    AUDIT_LOGS {
+        bigint id PK
+        timestamp timestamp
+        varchar action &quot;islem turu&quot;
+        bigint actor_user_id &quot;kim&quot;
+        varchar actor_email
+        varchar actor_role
+        varchar target_type &quot;neyi&quot;
+        varchar target_id
+        text details
+        varchar ip_address &quot;nereden&quot;
+        boolean success
+    }
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad:true, theme:'base', securityLevel:'loose',
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+                      primaryColor:'#eef2f7', primaryBorderColor:'#8fa3b8', lineColor:'#64748b' } });
+</script>
+</body></html>

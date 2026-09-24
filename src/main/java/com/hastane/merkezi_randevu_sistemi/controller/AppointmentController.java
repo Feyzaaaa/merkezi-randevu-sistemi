@@ -115,9 +115,13 @@ public class AppointmentController {
                     || !appointment.getDoctor().getUser().getId().equals(current.getUserId())) {
                 return ResponseEntity.status(403).body("Sadece kendi randevunuzun durumunu değiştirebilirsiniz!");
             }
+            // Önceki durumu şimdi yakalıyoruz: updateStatus aynı nesneyi güncellediği için
+            // çağrıdan sonra okunursa eski değer kaybolur ve kayda "X -> X" düşerdi.
+            AppointmentStatus oncekiDurum = appointment.getStatus();
+
             Appointment guncel = appointmentService.updateStatus(id, target);
             auditService.record(current, AuditAction.APPOINTMENT_STATUS_CHANGED, "Appointment", id,
-                    appointment.getStatus() + " -> " + target, httpRequest);
+                    oncekiDurum + " -> " + target, httpRequest);
             return ResponseEntity.ok(guncel);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

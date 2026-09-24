@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Şekil 3 — İstek Akışı: 401 / 403 / 200 Kararı Nerede Verilir</title>
+<style>
+  body { margin:0; padding:28px 24px; background:#fff;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { font-size:17px; font-weight:600; color:#1f2933; margin:0 0 20px;
+        padding-bottom:10px; border-bottom:2px solid #e4e7eb; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+</style></head>
+<body>
+<h1>Şekil 3 — İstek Akışı: 401 / 403 / 200 Kararı Nerede Verilir</h1>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant K as Kullanici (Tarayici)
+    participant F as JwtAuthenticationFilter
+    participant S as SecurityConfig&lt;br/&gt;(AuthorizationFilter)
+    participant C as Controller
+    participant D as Veritabani
+
+    Note over K,D: SENARYO 1 - Token yok veya suresi dolmus
+    K-&gt;&gt;F: GET /api/admin/stats
+    F-&gt;&gt;F: Authorization basligi yok / cozulemedi
+    F--&gt;&gt;K: 401 Oturum bulunamadi
+    Note right of K: axios interceptor oturumu kapatir
+
+    Note over K,D: SENARYO 2 - Gecerli token, yetersiz rol
+    K-&gt;&gt;F: GET /api/admin/stats (HASTA token)
+    F-&gt;&gt;F: Token cozuldu - rol PATIENT
+    F-&gt;&gt;S: SecurityContext dolduruldu
+    S-&gt;&gt;S: /api/admin/** icin ADMIN gerekli
+    S--&gt;&gt;K: 403 Bu islem icin yetkiniz yok
+    Note right of K: Oturum KORUNUR
+
+    Note over K,D: SENARYO 3 - Dogru rol, baskasinin kaydi
+    K-&gt;&gt;F: GET /api/appointments/patient/42 (HASTA token, id=17)
+    F-&gt;&gt;S: rol PATIENT
+    S-&gt;&gt;C: rol yeterli, gecti
+    C-&gt;&gt;C: kayit sahibi 42 != istekte bulunan 17
+    C--&gt;&gt;K: 403 Sadece kendi gecmisinizi gorebilirsiniz
+    Note right of C: NESNE DUZEYI KONTROL&lt;br/&gt;rol denetimi tek basina yetmez
+
+    Note over K,D: SENARYO 4 - Yetkili ve sahibi
+    K-&gt;&gt;F: GET /api/appointments/patient/17 (HASTA token, id=17)
+    F-&gt;&gt;S: rol PATIENT
+    S-&gt;&gt;C: gecti
+    C-&gt;&gt;C: sahiplik dogrulandi
+    C-&gt;&gt;D: sorgu
+    D--&gt;&gt;C: randevular
+    C--&gt;&gt;K: 200 OK
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad:true, theme:'base', securityLevel:'loose',
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+                      primaryColor:'#eef2f7', primaryBorderColor:'#8fa3b8', lineColor:'#64748b' } });
+</script>
+</body></html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Şekil 2 — Katmanlı Mimari ve Erişim Denetimi Katmanları</title>
+<style>
+  body { margin:0; padding:28px 24px; background:#fff;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { font-size:17px; font-weight:600; color:#1f2933; margin:0 0 20px;
+        padding-bottom:10px; border-bottom:2px solid #e4e7eb; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+</style></head>
+<body>
+<h1>Şekil 2 — Katmanlı Mimari ve Erişim Denetimi Katmanları</h1>
+<pre class="mermaid">flowchart TB
+    subgraph istemci[&quot;ISTEMCI - React + Ant Design&quot;]
+        UI[&quot;Portal Bilesenleri&lt;br/&gt;Hasta / Doktor / Yonetici&quot;]
+        PR[&quot;ProtectedRoute&lt;br/&gt;rol bazli sayfa erisimi&quot;]
+        AX[&quot;axios interceptor&lt;br/&gt;token ekler - 401 yakalar&quot;]
+    end
+
+    subgraph sunucu[&quot;SUNUCU - Spring Boot&quot;]
+        JF[&quot;JwtAuthenticationFilter&lt;br/&gt;KATMAN 1: kimlik dogrulama&quot;]
+        SC[&quot;SecurityConfig&lt;br/&gt;KATMAN 2: rol yetkisi&quot;]
+        CT[&quot;Controller&lt;br/&gt;KATMAN 3: nesne sahipligi&quot;]
+        SV[&quot;Service&lt;br/&gt;is kurallari&quot;]
+        RL[&quot;rules/&lt;br/&gt;AppointmentScheduleRules&lt;br/&gt;AppointmentStatusRules&lt;br/&gt;PasswordPolicy&quot;]
+        AU[&quot;AuditService&lt;br/&gt;islem izi&quot;]
+        RP[&quot;Repository - JPA&quot;]
+    end
+
+    subgraph veri[&quot;VERITABANI - PostgreSQL&quot;]
+        DB[(&quot;Tablolar&quot;)]
+        IX[&quot;Kismi unique index&lt;br/&gt;GARANTI: yaris durumu&quot;]
+    end
+
+    UI --&gt; PR --&gt; AX
+    AX --&gt;|&quot;HTTP + Bearer token&quot;| JF
+    JF --&gt;|&quot;401 kimlik yok&quot;| AX
+    SC --&gt;|&quot;403 rol yetersiz&quot;| AX
+    JF --&gt; SC --&gt; CT
+    CT --&gt;|&quot;403 sahip degil&quot;| AX
+    CT --&gt; SV
+    SV --&gt; RL
+    SV --&gt; RP
+    CT --&gt; AU
+    AU --&gt; RP
+    RP --&gt; DB
+    DB --- IX
+
+    style JF fill:#fff3cd
+    style SC fill:#ffe0b2
+    style CT fill:#ffccbc
+    style IX fill:#c8e6c9
+    style RL fill:#e1bee7
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad:true, theme:'base', securityLevel:'loose',
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+                      primaryColor:'#eef2f7', primaryBorderColor:'#8fa3b8', lineColor:'#64748b' } });
+</script>
+</body></html>

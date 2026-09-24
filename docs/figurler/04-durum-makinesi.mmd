@@ -1,0 +1,30 @@
+stateDiagram-v2
+    [*] --> PENDING: hasta randevu alir
+
+    PENDING --> CONFIRMED: doktor onaylar<br/>(randevu saati gecmemisse)
+    PENDING --> COMPLETED: doktor dogrudan tamamlar<br/>(saati gecmisse)
+    CONFIRMED --> COMPLETED: muayene bitti<br/>(saati gecmisse)
+
+    PENDING --> CANCELLED: iptal
+    CONFIRMED --> CANCELLED: iptal
+
+    COMPLETED --> [*]
+    CANCELLED --> [*]
+
+    note right of CANCELLED
+        SON DURUM
+        Geri donus yok
+        Saat yeniden musait olur
+    end note
+
+    note right of COMPLETED
+        SON DURUM
+        Saat dolu kalir
+    end note
+
+    note left of PENDING
+        Iptal yetkisi:
+        Hasta - kendi randevusu (R10: 1 saat kala iptal edemez)
+        Doktor - kendi randevusu (her an)
+        Yonetici - tum randevular (her an)
+    end note

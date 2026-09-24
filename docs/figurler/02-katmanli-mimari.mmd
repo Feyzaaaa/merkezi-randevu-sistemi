@@ -1,0 +1,41 @@
+flowchart TB
+    subgraph istemci["ISTEMCI - React + Ant Design"]
+        UI["Portal Bilesenleri<br/>Hasta / Doktor / Yonetici"]
+        PR["ProtectedRoute<br/>rol bazli sayfa erisimi"]
+        AX["axios interceptor<br/>token ekler - 401 yakalar"]
+    end
+
+    subgraph sunucu["SUNUCU - Spring Boot"]
+        JF["JwtAuthenticationFilter<br/>KATMAN 1: kimlik dogrulama"]
+        SC["SecurityConfig<br/>KATMAN 2: rol yetkisi"]
+        CT["Controller<br/>KATMAN 3: nesne sahipligi"]
+        SV["Service<br/>is kurallari"]
+        RL["rules/<br/>AppointmentScheduleRules<br/>AppointmentStatusRules<br/>PasswordPolicy"]
+        AU["AuditService<br/>islem izi"]
+        RP["Repository - JPA"]
+    end
+
+    subgraph veri["VERITABANI - PostgreSQL"]
+        DB[("Tablolar")]
+        IX["Kismi unique index<br/>GARANTI: yaris durumu"]
+    end
+
+    UI --> PR --> AX
+    AX -->|"HTTP + Bearer token"| JF
+    JF -->|"401 kimlik yok"| AX
+    SC -->|"403 rol yetersiz"| AX
+    JF --> SC --> CT
+    CT -->|"403 sahip degil"| AX
+    CT --> SV
+    SV --> RL
+    SV --> RP
+    CT --> AU
+    AU --> RP
+    RP --> DB
+    DB --- IX
+
+    style JF fill:#fff3cd
+    style SC fill:#ffe0b2
+    style CT fill:#ffccbc
+    style IX fill:#c8e6c9
+    style RL fill:#e1bee7

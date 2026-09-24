@@ -1,0 +1,30 @@
+flowchart TB
+    A["Randevu talebi<br/>POST /api/appointments"] --> B{"Hasta kendi adina mi?"}
+    B -->|hayir| X1["403 Sadece kendi adiniza"]
+    B -->|evet| C{"R1-R6<br/>ZAMAN KURALLARI<br/>(saf fonksiyon)"}
+
+    C -->|"R2 gecmis tarih"| X2["400 + kural kodu"]
+    C -->|"R3 30 gun sonrasi"| X2
+    C -->|"R4 izgara disi"| X2
+    C -->|"R5 mesai disi"| X2
+    C -->|"R6 ogle arasi"| X2
+
+    C -->|gecti| D{"R7-R9<br/>VERIYE BAGLI KURALLAR<br/>(veritabani sorgusu)"}
+    D -->|"R7 doktor izinli"| X2
+    D -->|"R8 ayni gun ayni poliklinik"| X2
+    D -->|"R9 aktif randevu limiti"| X2
+
+    D -->|gecti| E{"CAKISMA KONTROLU<br/>uygulama katmani"}
+    E -->|"doktor dolu"| X3["400 Bu saat dolu"]
+    E -->|"hasta dolu"| X3
+
+    E -->|gecti| F[("INSERT<br/>PostgreSQL")]
+    F --> G{"Kismi unique index<br/>GARANTI KATMANI"}
+    G -->|"yaris durumu:<br/>ikinci istek"| X4["400 Cakisma olustu"]
+    G -->|basarili| H["201 Randevu olusturuldu<br/>durum: PENDING<br/>+ e-posta bildirimi"]
+
+    style C fill:#e1bee7
+    style D fill:#d1c4e9
+    style E fill:#ffe0b2
+    style G fill:#c8e6c9
+    style H fill:#a5d6a7

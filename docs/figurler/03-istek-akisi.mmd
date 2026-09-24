@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    participant K as Kullanici (Tarayici)
+    participant F as JwtAuthenticationFilter
+    participant S as SecurityConfig<br/>(AuthorizationFilter)
+    participant C as Controller
+    participant D as Veritabani
+
+    Note over K,D: SENARYO 1 - Token yok veya suresi dolmus
+    K->>F: GET /api/admin/stats
+    F->>F: Authorization basligi yok / cozulemedi
+    F-->>K: 401 Oturum bulunamadi
+    Note right of K: axios interceptor oturumu kapatir
+
+    Note over K,D: SENARYO 2 - Gecerli token, yetersiz rol
+    K->>F: GET /api/admin/stats (HASTA token)
+    F->>F: Token cozuldu - rol PATIENT
+    F->>S: SecurityContext dolduruldu
+    S->>S: /api/admin/** icin ADMIN gerekli
+    S-->>K: 403 Bu islem icin yetkiniz yok
+    Note right of K: Oturum KORUNUR
+
+    Note over K,D: SENARYO 3 - Dogru rol, baskasinin kaydi
+    K->>F: GET /api/appointments/patient/42 (HASTA token, id=17)
+    F->>S: rol PATIENT
+    S->>C: rol yeterli, gecti
+    C->>C: kayit sahibi 42 != istekte bulunan 17
+    C-->>K: 403 Sadece kendi gecmisinizi gorebilirsiniz
+    Note right of C: NESNE DUZEYI KONTROL<br/>rol denetimi tek basina yetmez
+
+    Note over K,D: SENARYO 4 - Yetkili ve sahibi
+    K->>F: GET /api/appointments/patient/17 (HASTA token, id=17)
+    F->>S: rol PATIENT
+    S->>C: gecti
+    C->>C: sahiplik dogrulandi
+    C->>D: sorgu
+    D-->>C: randevular
+    C-->>K: 200 OK

@@ -1,0 +1,77 @@
+erDiagram
+    USERS ||--o| PATIENT_PROFILES : "saglik profili"
+    USERS ||--o{ APPOINTMENTS : "hasta olarak alir"
+    USERS ||--o{ LAB_RESULTS : "tahlil sonucu"
+    USERS ||--o| DOCTORS : "doktor kaydi"
+    USERS ||--o{ AUDIT_LOGS : "islem izi"
+    DEPARTMENTS ||--o{ DOCTORS : "poliklinik"
+    DOCTORS ||--o{ APPOINTMENTS : "randevu verir"
+    DOCTORS ||--o{ DOCTOR_LEAVES : "izin gunu"
+
+    USERS {
+        bigint id PK
+        varchar email UK "benzersiz"
+        varchar password "BCrypt"
+        varchar first_name
+        varchar last_name
+        varchar role "PATIENT / DOCTOR / ADMIN"
+        int failed_login_attempts "kaba kuvvet sayaci"
+        timestamp locked_until "gecici kilit"
+    }
+    DEPARTMENTS {
+        bigint id PK
+        varchar name UK "poliklinik adi"
+    }
+    DOCTORS {
+        bigint id PK
+        bigint user_id FK
+        bigint department_id FK
+        varchar title "unvan"
+    }
+    DOCTOR_LEAVES {
+        bigint id PK
+        bigint doctor_id FK
+        date leave_date "R7 kurali"
+        varchar reason
+    }
+    APPOINTMENTS {
+        bigint id PK
+        bigint patient_id FK
+        bigint doctor_id FK
+        timestamp appointment_date "kismi unique index"
+        varchar status "PENDING/CONFIRMED/COMPLETED/CANCELLED"
+        text complaint
+        text note "vaka notu"
+    }
+    PATIENT_PROFILES {
+        bigint id PK
+        bigint user_id FK
+        int height
+        double weight
+        int age
+        varchar gender
+        varchar blood_type
+        text allergies
+        varchar phone
+    }
+    LAB_RESULTS {
+        bigint id PK
+        bigint patient_id FK
+        varchar test_name
+        varchar result
+        varchar reference_range
+        date test_date
+    }
+    AUDIT_LOGS {
+        bigint id PK
+        timestamp timestamp
+        varchar action "islem turu"
+        bigint actor_user_id "kim"
+        varchar actor_email
+        varchar actor_role
+        varchar target_type "neyi"
+        varchar target_id
+        text details
+        varchar ip_address "nereden"
+        boolean success
+    }

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Şekil 5 — Randevu Oluşturma: Kural ve Çakışma Denetimi Akışı</title>
+<style>
+  body { margin:0; padding:28px 24px; background:#fff;
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { font-size:17px; font-weight:600; color:#1f2933; margin:0 0 20px;
+        padding-bottom:10px; border-bottom:2px solid #e4e7eb; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+</style></head>
+<body>
+<h1>Şekil 5 — Randevu Oluşturma: Kural ve Çakışma Denetimi Akışı</h1>
+<pre class="mermaid">flowchart TB
+    A[&quot;Randevu talebi&lt;br/&gt;POST /api/appointments&quot;] --&gt; B{&quot;Hasta kendi adina mi?&quot;}
+    B --&gt;|hayir| X1[&quot;403 Sadece kendi adiniza&quot;]
+    B --&gt;|evet| C{&quot;R1-R6&lt;br/&gt;ZAMAN KURALLARI&lt;br/&gt;(saf fonksiyon)&quot;}
+
+    C --&gt;|&quot;R2 gecmis tarih&quot;| X2[&quot;400 + kural kodu&quot;]
+    C --&gt;|&quot;R3 30 gun sonrasi&quot;| X2
+    C --&gt;|&quot;R4 izgara disi&quot;| X2
+    C --&gt;|&quot;R5 mesai disi&quot;| X2
+    C --&gt;|&quot;R6 ogle arasi&quot;| X2
+
+    C --&gt;|gecti| D{&quot;R7-R9&lt;br/&gt;VERIYE BAGLI KURALLAR&lt;br/&gt;(veritabani sorgusu)&quot;}
+    D --&gt;|&quot;R7 doktor izinli&quot;| X2
+    D --&gt;|&quot;R8 ayni gun ayni poliklinik&quot;| X2
+    D --&gt;|&quot;R9 aktif randevu limiti&quot;| X2
+
+    D --&gt;|gecti| E{&quot;CAKISMA KONTROLU&lt;br/&gt;uygulama katmani&quot;}
+    E --&gt;|&quot;doktor dolu&quot;| X3[&quot;400 Bu saat dolu&quot;]
+    E --&gt;|&quot;hasta dolu&quot;| X3
+
+    E --&gt;|gecti| F[(&quot;INSERT&lt;br/&gt;PostgreSQL&quot;)]
+    F --&gt; G{&quot;Kismi unique index&lt;br/&gt;GARANTI KATMANI&quot;}
+    G --&gt;|&quot;yaris durumu:&lt;br/&gt;ikinci istek&quot;| X4[&quot;400 Cakisma olustu&quot;]
+    G --&gt;|basarili| H[&quot;201 Randevu olusturuldu&lt;br/&gt;durum: PENDING&lt;br/&gt;+ e-posta bildirimi&quot;]
+
+    style C fill:#e1bee7
+    style D fill:#d1c4e9
+    style E fill:#ffe0b2
+    style G fill:#c8e6c9
+    style H fill:#a5d6a7
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad:true, theme:'base', securityLevel:'loose',
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+                      primaryColor:'#eef2f7', primaryBorderColor:'#8fa3b8', lineColor:'#64748b' } });
+</script>
+</body></html>

@@ -193,6 +193,14 @@ bağımsızdır.
 
 ---
 
+## Tez figürleri
+
+`docs/figurler/` klasöründe tez metnine eklenebilecek görseller bulunur: veritabanı
+ER diyagramı, katmanlı mimari, istek akışı (401/403/200 kararı), randevu durum
+makinesi, kural denetimi akışı ve sekiz ekran görüntüsü. Diyagramların Mermaid
+kaynakları da aynı klasördedir; yeniden üretme adımları `docs/figurler/README.md`
+içinde anlatılmıştır.
+
 ## Proje yapısı
 
 ```
