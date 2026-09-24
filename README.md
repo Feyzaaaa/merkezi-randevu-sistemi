@@ -177,6 +177,37 @@ Ayrıca **aynı saat çakışması** üç katmanda önlenir:
 Bu ayrım tezin temel savıdır: *istemci tarafı doğrulama bir kolaylıktır; kural
 sunucuda, garanti veritabanındadır.*
 
+#### Ölçülmüş sonuç: eşzamanlılık deneyi
+
+Üçüncü katmanın gerekliliği mimari bir varsayım değil, ölçülmüş bir bulgudur.
+`ConcurrentBookingExperimentTest`, **aynı doktorun aynı saatine 20 farklı hastadan
+eşzamanlı talep** gönderir (tüm istekler bir `CountDownLatch` ile aynı anda
+serbest bırakılır):
+
+| Deney | Veritabanı garantisi | Kabul edilen | Kaydedilen | Mükerrer |
+|---|:--:|:--:|:--:|:--:|
+| **A** | açık (kısmi unique index) | 1 | **1** | 0 |
+| **B** | kapalı (yalnızca uygulama kontrolü) | 10 | **10** | **9** |
+
+**Yorum:** Uygulama katmanındaki "önce kontrol et, sonra kaydet" mantığı, 20
+eşzamanlı istekte 10 talebin kontrolü birlikte geçmesine engel olamadı ve aynı
+saate 10 randevu kaydedildi. Aynı senaryoda kısmi unique index etkinken yalnızca
+1 kayıt oluştu, 19 talep reddedildi.
+
+Deney B'nin sonucu olasılıksaldır (yarış penceresi her çalıştırmada aynı genişlikte
+yakalanmaz); bu yüzden testte katı bir eşitlik değil, ölçüm raporlanır. Deney A ise
+deterministiktir ve kesin olarak doğrulanır.
+
+Deneyi çalıştırmak için:
+
+```bash
+./mvnw test -Dtest=ConcurrentBookingExperimentTest
+```
+
+> Deney B ölçüm yapabilmek için index'i geçici olarak düşürür ve bitince geri
+> oluşturur. Test yarıda kesilirse index eksik kalabilir; bu yüzden hem kurulum
+> hem toparlama adımında index'in varlığı yeniden sağlanır.
+
 ### Randevu durum akışı
 
 ```
@@ -206,6 +237,7 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `PasswordPolicyTest` | 13 | Kabul/ret edilen şifre biçimleri |
 | `LoginAttemptServiceTest` | 7 | Kilitlenme eşiği ve kilidin süreyle açılması |
 | `PasswordChangeTest` | 9 | Şifre değiştirme kuralları ve token geçersizleştirme |
+| `ConcurrentBookingExperimentTest` | 2 | Eşzamanlı talepte veritabanı garantisinin ölçümü |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden

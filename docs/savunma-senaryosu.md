@@ -3,7 +3,7 @@
 Bu belge, jüri önünde sistemi adım adım nasıl göstereceğini anlatır. Her adımda
 üç şey var: **ne yapacaksın**, **ne görülecek**, **hangi iddiayı kanıtlıyor**.
 
-Toplam süre: yaklaşık **12–15 dakika**.
+Toplam süre: yaklaşık **13–16 dakika**.
 
 ---
 
@@ -141,6 +141,30 @@ veritabanı (garanti).
 
 ---
 
+### 5b. ⭐ Yarış durumunu ölç, anlatma · 1 dk
+
+**Yap:** Terminalde:
+
+```bash
+./mvnw test -Dtest=ConcurrentBookingExperimentTest
+```
+
+**Görülecek:** İki kutu halinde ölçüm sonucu:
+
+```
+DENEY A — Veritabanı garantisi AÇIK      → 20 talep, 1 kabul, 1 kayıt
+DENEY B — Veritabanı garantisi KAPALI    → 20 talep, 10 kabul, 9 MÜKERRER KAYIT
+```
+
+**Kanıtladığı:** Üçüncü katman süs değil. Aynı doktorun aynı saatine 20 eşzamanlı
+talep gönderildiğinde, uygulama katmanı kontrolü tek başına 10 mükerrer kaydı
+engelleyemedi; kısmi unique index etkinken yalnızca 1 kayıt oluştu.
+
+> **Söylenecek cümle:** "Bu bir varsayım değil, ölçüm. Index'i kapatıp aynı deneyi
+> tekrarladım ve 9 mükerrer randevu oluştu."
+
+---
+
 ### 6. Doktor portalı: izin günü ve durum akışı · 2 dk
 
 **Yap:** Çıkış yap, doktor olarak gir.
@@ -244,7 +268,7 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 92, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 94, Failures: 0, Errors: 0`
 
 **Anlat:** Gösterilen her kural otomatik testlerle de doğrulanıyor; zamana bağlı
 testler sabit bir referans an kullandığı için sonuçlar günün saatinden bağımsız.
@@ -285,7 +309,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-92 test: kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+94 test: kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---
