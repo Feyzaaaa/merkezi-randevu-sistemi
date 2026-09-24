@@ -19,8 +19,6 @@ public class DepartmentController {
         return departmentService.getAllDepartments();
     }
 
-    @PostMapping
-    public Department create(@RequestBody Department department) {
-        return departmentService.saveDepartment(department);
-    }
+    // NOT: Poliklinik tanımlama ucu AdminController'dadır (POST /api/admin/departments).
+    // Buradaki eski uç girdi doğrulaması yapmıyor ve denetim kaydı bırakmıyordu.
 }

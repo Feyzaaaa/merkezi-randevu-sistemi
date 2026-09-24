@@ -268,9 +268,9 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 214, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 206, Failures: 0, Errors: 0`
 
-Bunların 120'si yetki matrisi kontrolüdür: 30 uç nokta, dört aktörle
+Bunların 112'si yetki matrisi kontrolüdür: 28 uç nokta, dört aktörle
 (kimliksiz · hasta · doktor · yönetici) tek tek denenir. İstersen tek başına
 çalıştırıp ölçülen matrisi ekranda gösterebilirsin:
 
@@ -317,7 +317,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-214 test (120'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+206 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---

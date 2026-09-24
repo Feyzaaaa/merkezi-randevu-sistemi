@@ -15,7 +15,4 @@ public class DepartmentService {
         return departmentRepository.findAll();
     }
 
-    public Department saveDepartment(Department department) {
-        return departmentRepository.save(department);
-    }
 }

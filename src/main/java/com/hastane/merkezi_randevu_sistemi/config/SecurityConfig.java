@@ -48,9 +48,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/users/me/password").authenticated()
                 // Sistemdeki TÜM randevular (tek hastanın değil): sadece yönetici denetimi
                 .requestMatchers(HttpMethod.GET, "/api/appointments").hasRole("ADMIN")
-                // Doktor ve poliklinik tanımlamak bir yönetim işlemidir
-                .requestMatchers(HttpMethod.POST, "/api/doctors").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/departments").hasRole("ADMIN")
+                // NOT: Doktor ve poliklinik tanımlama uçları yalnızca /api/admin/** altındadır.
+                // Eski POST /api/doctors ve POST /api/departments uçları kaldırıldı: girdi
+                // doğrulaması yapmıyor ve denetim kaydı bırakmıyorlardı.
 
                 // --- DOKTOR YETKİLERİ ---
                 // Doktor kendi Doctor kaydını (doctorId'sini) bulmak için kullanır

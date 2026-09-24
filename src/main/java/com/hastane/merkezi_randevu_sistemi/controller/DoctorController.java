@@ -52,11 +52,10 @@ public class DoctorController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // --- DÜZELTİLEN YER (Parantez eklendi) ---
-    @PostMapping
-    public Doctor createDoctor(@RequestBody Doctor doctor) {
-        return doctorService.saveDoctor(doctor);
-    }
+    // NOT: Doktor tanımlama ucu bilinçli olarak burada DEĞİL, AdminController'dadır
+    // (POST /api/admin/doctors). Buradaki eski uç girdi doğrulaması yapmıyor ve
+    // denetim kaydı bırakmıyordu; aynı işin denetimsiz ikinci bir yolu olmasın diye
+    // kaldırıldı.
 
     // --- DOKTOR İZİN / GÖREV GÜNLERİ (kural R7) ---
     // Doktor yalnızca kendi izin günlerini görüntüler ve yönetir.

@@ -69,9 +69,9 @@ sahibiyle karşılaştırır.
 
 ### Yetki matrisi
 
-> Bu tablo elle yazılmış bir belge değildir: `AuthorizationMatrixTest`, 30 uç
+> Bu tablo elle yazılmış bir belge değildir: `AuthorizationMatrixTest`, 28 uç
 > noktanın her birini dört aktörle (kimliksiz · hasta · doktor · yönetici)
-> deneyerek **120 kontrol** yapar ve tablonun koddaki karşılığını doğrular.
+> deneyerek **112 kontrol** yapar ve tablonun koddaki karşılığını doğrular.
 > Test, yetkilendirme sonucunu iş sonucundan ayırır: reddedilmesi beklenen
 > hücrede kodun tam olarak 401/403 olması, izin verilmesi beklenen hücrede ise
 > 401/403 **olmaması** aranır (200/400/404 fark etmez — yetki katmanı geçilmiştir).
@@ -92,7 +92,6 @@ sahibiyle karşılaştırır.
 | `GET /api/lab-results/patient/{id}` | ✅ kendi sonuçları | ✅ | ❌ |
 | `POST /api/lab-results` | ❌ | ✅ | ❌ |
 | `GET /api/users` · `GET /api/appointments` (tümü) | ❌ | ❌ | ✅ |
-| `POST /api/doctors` · `POST /api/departments` | ❌ | ❌ | ✅ |
 | `GET /api/admin/stats` · `/users` · `/appointments` | ❌ | ❌ | ✅ |
 | `PATCH /api/users/me/password` | ✅ kendi şifresi | ✅ | ✅ |
 | `PATCH /api/admin/users/{id}/role` | ❌ | ❌ | ✅ |
@@ -132,6 +131,17 @@ Sistemde iki telafi vardır:
 Böylece şifre değiştirmek, o hesapla açılmış bütün oturumları düşürür. Şifre
 değiştirirken mevcut şifrenin sorulması da bunun parçasıdır: sorulmasaydı,
 çalınmış bir token hesabın kalıcı olarak ele geçirilmesine yeterdi.
+
+### Tek yol ilkesi
+
+Doktor ve poliklinik tanımlama yalnızca `/api/admin/**` altından yapılabilir.
+Aynı işi yapan eski `POST /api/doctors` ve `POST /api/departments` uçları
+kaldırıldı: girdi doğrulaması yapmıyor ve **denetim kaydı bırakmıyorlardı**.
+Bir yönetim işleminin denetimsiz ikinci bir yolu varsa, denetim kaydı eksiksiz
+sayılamaz.
+
+Bu kusur yetki matrisi testi sırasında görüldü: iki uç, bozuk gövdeyle
+çağrıldığında 400 yerine 500 döndürüyordu.
 
 ### Denetim kaydı (audit log)
 
@@ -245,7 +255,7 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `LoginAttemptServiceTest` | 7 | Kilitlenme eşiği ve kilidin süreyle açılması |
 | `PasswordChangeTest` | 9 | Şifre değiştirme kuralları ve token geçersizleştirme |
 | `ConcurrentBookingExperimentTest` | 2 | Eşzamanlı talepte veritabanı garantisinin ölçümü |
-| `AuthorizationMatrixTest` | 120 | 30 uç nokta × 4 aktör: tam yetki matrisi |
+| `AuthorizationMatrixTest` | 112 | 28 uç nokta × 4 aktör: tam yetki matrisi |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden

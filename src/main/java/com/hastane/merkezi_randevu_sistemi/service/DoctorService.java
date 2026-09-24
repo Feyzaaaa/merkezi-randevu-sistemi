@@ -28,10 +28,6 @@ public class DoctorService {
         return doctorRepository.findByUserId(userId);
     }
 
-    // --- EKSİK OLAN VE HATAYA SEBEP OLAN METOT BURASI ---
-    public Doctor saveDoctor(Doctor doctor) {
-        return doctorRepository.save(doctor);
-    }
 
     // --- DOKTOR İZİN / GÖREV GÜNLERİ (kural R7) ---
 
