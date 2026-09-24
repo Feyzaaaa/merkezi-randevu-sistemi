@@ -70,6 +70,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/cancel").hasAnyRole("PATIENT", "DOCTOR", "ADMIN")
                 // Hasta Portalı: sadece PATIENT rolü kendi randevu geçmişini görebilir ve randevu alabilir
                 .requestMatchers("/api/appointments/patient/**").hasRole("PATIENT")
+                // Optimizasyon motoru önerileri: hasta kendisi için ister (sahiplik controller'da)
+                .requestMatchers(HttpMethod.GET, "/api/appointments/recommendations").hasRole("PATIENT")
                 .requestMatchers(HttpMethod.POST, "/api/appointments").hasRole("PATIENT")
                 // Hasta Profili (boy/kilo/yaş/cinsiyet/kan grubu/alerji/iletişim): sadece PATIENT
                 .requestMatchers("/api/patient-profiles/**").hasRole("PATIENT")

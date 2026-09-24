@@ -111,6 +111,8 @@ public class AppointmentService {
         }
 
         appointment.setStatus(AppointmentStatus.PENDING);
+        // Bekleme süresi ve iptal riski modeli için: randevunun alındığı an
+        appointment.setCreatedAt(LocalDateTime.now());
 
         // 6. SON GÜVENCE: İki istek yukarıdaki kontrolleri tam olarak aynı anda geçip buraya
         // birlikte ulaşırsa (klasik yarış durumu / race condition), veritabanındaki kısmi

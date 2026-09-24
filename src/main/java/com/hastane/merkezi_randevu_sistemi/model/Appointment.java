@@ -37,6 +37,12 @@ public class Appointment {
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status;
 
+    // Randevunun ALINDIĞI an. Bekleme süresi = appointmentDate - createdAt.
+    // Optimizasyon motoru hem varyans hesabında hem de iptal riski modelinin
+    // "randevuya kalan gün" özniteliğinde bu alanı kullanır.
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     // --- HATALARI ÇÖZEN MANUEL METOTLAR ---
     public User getPatient() { return patient; }
     public void setPatient(User patient) { this.patient = patient; }
@@ -48,6 +54,15 @@ public class Appointment {
     public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }
 
     public void setStatus(AppointmentStatus status) { this.status = status; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    /** Hastanın kaç gün beklediği; alınma zamanı bilinmiyorsa boş döner */
+    public java.util.OptionalLong getWaitDays() {
+        if (createdAt == null || appointmentDate == null) return java.util.OptionalLong.empty();
+        return java.util.OptionalLong.of(java.time.Duration.between(createdAt, appointmentDate).toDays());
+    }
 
     // --- YENİ EKLENEN NOT KÖPRÜLERİ ---
     public String getNote() { return note; }

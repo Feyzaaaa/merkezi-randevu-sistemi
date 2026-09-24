@@ -21,3 +21,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until timestamp;
 
 -- Şifre değişikliği damgası: bu andan ÖNCE üretilmiş JWT'ler geçersiz sayılır
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamp;
+
+-- Randevunun alındığı an: bekleme süresi (appointment_date - created_at) ve
+-- iptal riski modelinin öznitelikleri bu alandan hesaplanır.
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at timestamp;

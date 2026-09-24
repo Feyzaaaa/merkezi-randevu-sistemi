@@ -81,6 +81,7 @@ sahibiyle karşılaştırır.
 | `POST /api/users/register`, `/login` | açık | açık | açık |
 | `GET /api/departments`, `/api/doctors` | ✅ | ✅ | ✅ |
 | `GET /api/appointments/available-slots` | ✅ | ✅ | ✅ |
+| `GET /api/appointments/recommendations` | ✅ kendisi için | ❌ | ❌ |
 | `POST /api/appointments` | ✅ kendi adına | ❌ | ❌ |
 | `GET /api/appointments/patient/{id}` | ✅ kendi geçmişi | ❌ | ❌ |
 | `GET /api/appointments/doctor/{id}` | ❌ | ✅ kendi listesi | ❌ |
@@ -225,6 +226,107 @@ Deneyi çalıştırmak için:
 > oluşturur. Test yarıda kesilirse index eksik kalabilir; bu yüzden hem kurulum
 > hem toparlama adımında index'in varlığı yeniden sağlanır.
 
+---
+
+## Randevu optimizasyon motoru
+
+Kural katmanı bir adayın **geçerli** olup olmadığını söyler; optimizasyon motoru
+geçerli adaylar arasından hangisinin **daha iyi** olduğunu belirler.
+
+> *"Hasta için mevcut alternatifler arasından en uygun randevu nasıl seçilir?"*
+
+Bir poliklinikte 30 günlük pencerede tipik olarak **2000'den fazla geçerli aday**
+bulunur. Motor hepsini puanlar ve en iyilerini döndürür:
+
+```
+Maliyet = w₁·Bekleme + w₂·Doluluk + w₃·Varyans + w₄·Risk        (düşük = iyi)
+```
+
+| Bileşen | Ne ölçer | Neden |
+|---|---|---|
+| **Bekleme** | Hasta kaç gün bekleyecek (0–30 normalize) | Erken randevu hasta için daha iyidir |
+| **Doluluk** | Doktorun o günkü doluluğunun hedeften sapması | Kapasite kullanılmalı ama taşırılmamalı |
+| **Varyans** | Adayın beklemesinin sistem ortalamasından sapması | Bekleme dağılımı daraltılır: kimse 1 gün, başkası 29 gün beklemesin |
+| **Risk** | P(iptal) × o günün doluluğu | Beklenen kapasite kaybı planlama maliyetine dahil edilir |
+
+### Neden %100 doluluk hedef değil?
+
+Doluluk maliyeti **asimetriktir**:
+
+```
+u ≤ hedef →  (hedef − u) / hedef                      ... atıl kapasite, hafif ceza
+u > hedef →  ceza × (u − hedef) / (1 − hedef)         ... aşırı yükleme, ağır ceza
+```
+
+Varsayılan hedef **%85**'tir. Tamamen dolu bir gün mola, gecikme, acil hasta ve
+beklenmeyen durumlar için pay bırakmaz; tek bir gecikme zincirleme olarak günün
+tamamını kaydırır. Ölçülen değerler:
+
+| Doluluk | Maliyet |
+|---|---|
+| %85 (hedef) | **0.00** ← tercih edilen |
+| ~%5 (neredeyse boş) | 0.94 |
+| ~%98 (aşırı yüklü) | 1.73 |
+
+Yani sistem kapasiteyi doldurmaya çalışır, fakat son slotu doldurmaktan kaçınır.
+
+### İptal riski modeli
+
+`P(iptal) = σ(w·x + b)` — lojistik regresyon, **sistemdeki geçmiş randevular
+üzerinde eğitilir** (toplu gradyan inişi, L2 düzenlileştirme).
+
+Öznitelikler: randevuya kalan gün · hastanın geçmiş iptal oranı (Laplace
+düzeltmeli) · randevu saati · randevu geçmişi uzunluğu.
+
+Yeterli örnek yoksa (< 20) eğitim yapılmaz; literatürdeki yönlere uygun soğuk
+başlangıç ağırlıkları kullanılır ve bu durum yanıtta **açıkça raporlanır** —
+model "eğitilmiş gibi" davranmaz.
+
+**Risk hiçbir adayı elemez.** Yalnızca sıralamayı etkiler: iptal olasılığı
+randevuya kalan süreye bağlı olduğundan, riskli hasta için motor kendiliğinden
+daha yakın tarihe yönelir (riski azaltan yön); doluluk çarpanı ise en çok talep
+gören slotların yüksek riskli randevularla işgal edilmesini sınırlar.
+
+### Çeşitlilik kısıtı
+
+En düşük maliyetli adaylar neredeyse her zaman aynı günün ardışık saatleridir
+(14:00, 14:15, 14:30…). Bu liste teknik olarak "en iyi üç" olsa da kullanıcıya
+gerçek bir seçim sunmaz; bu yüzden her (doktor, gün) çiftinden en fazla bir aday
+önerilir.
+
+### Ölçülmüş sonuç: senaryo deneyi
+
+Aynı poliklinikte üç doktor, yarın için farklı dolulukta kurgulanır:
+
+| Doktor | Yarınki doluluk | Motorun seçimi |
+|---|---|---|
+| A | ~%95 (aşırı yüklü) | — |
+| **B** | **~%85 (hedef)** | ✅ **seçildi** |
+| C | %0 (boş) | — |
+
+Motor, bir gün daha beklemeyi göze alarak hedef doluluktaki günü seçti; ne boş
+günü (israf) ne de tıka basa dolu günü (kırılgan plan) tercih etti.
+
+```bash
+./mvnw test -Dtest=OptimizerScenarioTest
+```
+
+### Ayarlanabilirlik
+
+Tüm katsayılar `application.properties` üzerinden değiştirilebilir; tez kapsamında
+duyarlılık analizi için:
+
+```properties
+mhrs.optimizasyon.bekleme-agirligi=0.40
+mhrs.optimizasyon.doluluk-agirligi=0.25
+mhrs.optimizasyon.varyans-agirligi=0.15
+mhrs.optimizasyon.risk-agirligi=0.20
+mhrs.optimizasyon.hedef-doluluk=0.85
+mhrs.optimizasyon.asiri-yuk-cezasi=2.0
+```
+
+---
+
 ### Randevu durum akışı
 
 ```
@@ -256,6 +358,9 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `PasswordChangeTest` | 9 | Şifre değiştirme kuralları ve token geçersizleştirme |
 | `ConcurrentBookingExperimentTest` | 2 | Eşzamanlı talepte veritabanı garantisinin ölçümü |
 | `AuthorizationMatrixTest` | 112 | 28 uç nokta × 4 aktör: tam yetki matrisi |
+| `UtilizationCostTest` | 8 | Asimetrik doluluk maliyeti; %100 doluluğun hedef olmadığı |
+| `CancellationRiskModelTest` | 7 | Lojistik regresyonun davranışı ve soğuk başlangıç |
+| `OptimizerScenarioTest` | 4 | Motorun hedef dolulukta doktoru seçmesi, çeşitlilik, riskli hasta |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
@@ -283,6 +388,7 @@ içinde anlatılmıştır.
 config/      SecurityConfig (yetki kuralları), WebConfig, DataLoader
 security/    JwtUtil, JwtAuthenticationFilter, AuthenticatedUser
 rules/       AppointmentScheduleRules, AppointmentStatusRules, PasswordPolicy
+optimization/ AppointmentOptimizer, CancellationRiskModel, OptimizationWeights, SlotScore
 controller/  REST uçları — rol ve sahiplik kontrolleri burada
 service/     İş kuralları
 repository/  JPA sorguları

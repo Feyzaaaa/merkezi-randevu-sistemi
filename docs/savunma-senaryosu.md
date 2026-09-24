@@ -3,7 +3,7 @@
 Bu belge, jüri önünde sistemi adım adım nasıl göstereceğini anlatır. Her adımda
 üç şey var: **ne yapacaksın**, **ne görülecek**, **hangi iddiayı kanıtlıyor**.
 
-Toplam süre: yaklaşık **13–16 dakika**.
+Toplam süre: yaklaşık **15–18 dakika**.
 
 ---
 
@@ -165,6 +165,41 @@ engelleyemedi; kısmi unique index etkinken yalnızca 1 kayıt oluştu.
 
 ---
 
+### 5c. ⭐ Optimizasyon motoru: "en uygun randevu" nasıl seçilir · 2 dk
+
+**Yap:** Hasta portalında **Yeni Randevu Al** → bir poliklinik seç.
+
+**Görülecek:** "Sizin İçin Önerilenler" kartı açılır; başlıkta kaç adayın
+değerlendirildiği yazar (tipik olarak 1000–3000). Her öneride gerekçe vardır:
+*"yarın · doktorun günü dengeli dolulukta · iptal olasılığı %24"*
+
+**Anlat:** Kural katmanı bir adayın GEÇERLİ olup olmadığını söyler; bu motor
+geçerli adaylar arasından hangisinin DAHA İYİ olduğunu belirler. Dört ölçüt
+ağırlıklı bir maliyet fonksiyonunda birleşir: bekleme süresi, doktor doluluğu,
+bekleme varyansı ve iptal riski.
+
+**Sonra:** Terminalde ölçümü göster:
+
+```bash
+./mvnw test -Dtest=OptimizerScenarioTest
+```
+
+Üç doktor, yarın için sırasıyla ~%95, ~%85 ve %0 dolulukta kurgulanır. Motor
+**%85'teki doktoru seçer** — ne boş günü ne tıka basa dolu günü.
+
+> **Söylenecek cümle:** "Burada anahtar nokta şu: %100 doluluk iyi bir hedef
+> değil. Dolu bir gün mola, gecikme ve acil hasta için pay bırakmaz; tek bir
+> gecikme tüm günü kaydırır. Maliyet fonksiyonu bu yüzden asimetrik — atıl
+> kapasite israf, aşırı yükleme ise risk ve daha ağır cezalandırılıyor."
+
+> **Soru gelirse — "İptal riski yüksek hastaya randevu vermiyor musunuz?"**
+> Veriyoruz. Risk hiçbir adayı elemez, yalnızca sıralamayı etkiler. Üstelik
+> iptal olasılığı randevuya kalan süreye bağlı olduğu için motor riskli hastayı
+> kendiliğinden daha yakın tarihe yönlendirir — yani riski azaltan yöne. Testte
+> de bunu doğruladık: iptal geçmişi olan hastaya yine üç öneri üretiliyor.
+
+---
+
 ### 6. Doktor portalı: izin günü ve durum akışı · 2 dk
 
 **Yap:** Çıkış yap, doktor olarak gir.
@@ -268,7 +303,7 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 206, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 225, Failures: 0, Errors: 0`
 
 Bunların 112'si yetki matrisi kontrolüdür: 28 uç nokta, dört aktörle
 (kimliksiz · hasta · doktor · yönetici) tek tek denenir. İstersen tek başına
@@ -317,7 +352,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-206 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+225 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---

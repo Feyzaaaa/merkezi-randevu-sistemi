@@ -6,6 +6,7 @@ import com.hastane.merkezi_randevu_sistemi.model.AuditAction;
 import com.hastane.merkezi_randevu_sistemi.repository.DoctorRepository;
 import com.hastane.merkezi_randevu_sistemi.security.AuthenticatedUser;
 import com.hastane.merkezi_randevu_sistemi.service.AppointmentService;
+import com.hastane.merkezi_randevu_sistemi.optimization.AppointmentOptimizer;
 import com.hastane.merkezi_randevu_sistemi.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +31,9 @@ public class AppointmentController {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private AppointmentOptimizer appointmentOptimizer;
 
     @PostMapping
     public ResponseEntity<?> createAppointment(@RequestBody Appointment appointment, Authentication authentication) {
@@ -163,5 +167,24 @@ public class AppointmentController {
         
         List<String> slots = appointmentService.getAvailableSlots(doctorId, date);
         return ResponseEntity.ok(slots);
+    }
+
+    /**
+     * RANDEVU ÖNERİSİ (optimizasyon motoru)
+     *
+     * Kural katmanını geçen tüm adaylar arasından, bekleme süresi + doktor doluluğu
+     * + bekleme varyansı + iptal riski ölçütleriyle en uygun olanları döndürür.
+     *
+     * SAHİPLİK: Hasta yalnızca kendisi için öneri isteyebilir.
+     */
+    @GetMapping("/recommendations")
+    public ResponseEntity<?> getRecommendations(@RequestParam Long patientId,
+                                                @RequestParam(required = false) Long departmentId,
+                                                Authentication authentication) {
+        AuthenticatedUser current = (AuthenticatedUser) authentication.getPrincipal();
+        if (!patientId.equals(current.getUserId())) {
+            return ResponseEntity.status(403).body("Sadece kendiniz için öneri alabilirsiniz!");
+        }
+        return ResponseEntity.ok(appointmentOptimizer.onerileriHesapla(patientId, departmentId));
     }
 }

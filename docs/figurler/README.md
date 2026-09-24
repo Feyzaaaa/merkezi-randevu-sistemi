@@ -25,6 +25,7 @@ yanındadır; içerik değişirse yeniden üretilebilir.
 | `11-ekran-yonetici-roller.png` | Yönetici portalı — kullanıcı ve rol yönetimi |
 | `12-ekran-denetim-kayitlari.png` | Yönetici portalı — denetim kayıtları (kim, ne zaman, neyi, nereden) |
 | `13-ekran-kayit.png` | Kayıt ekranı — şifre politikası bilgilendirmesi |
+| `14-ekran-oneriler.png` | Optimizasyon motoru — hasta için önerilen randevular ve gerekçeleri |
 
 ## Diyagramları yeniden üretme
 
