@@ -59,4 +59,25 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
               AND a.status <> com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus.CANCELLED
             """)
     long countActiveAppointments(@Param("patientId") Long patientId, @Param("now") LocalDateTime now);
+
+    /**
+     * TEDAVİ İLİŞKİSİ: Bu doktorun bu hastayla, verilen zaman aralığında
+     * iptal edilmemiş bir randevusu var mı?
+     *
+     * Bağlam farkındalı erişim politikasının temel koşuludur: doktor, yalnızca
+     * kendisine atanmış hastanın klinik verisine erişebilir. Sorgu doktorun
+     * KULLANICI kimliği üzerinden yapılır; token'da taşınan kimlik budur.
+     */
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.doctor.user.id = :doctorUserId
+              AND a.patient.id = :patientId
+              AND a.appointmentDate >= :baslangic
+              AND a.appointmentDate <= :bitis
+              AND a.status <> com.hastane.merkezi_randevu_sistemi.model.AppointmentStatus.CANCELLED
+            """)
+    boolean existsTedaviIliskisi(@Param("doctorUserId") Long doctorUserId,
+                                 @Param("patientId") Long patientId,
+                                 @Param("baslangic") LocalDateTime baslangic,
+                                 @Param("bitis") LocalDateTime bitis);
 }

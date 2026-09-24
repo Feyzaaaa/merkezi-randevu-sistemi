@@ -62,10 +62,15 @@ Erişim denetimi **üç katmanlıdır**:
 | **Kimlik doğrulama** — token var mı, geçerli mi? | `JwtAuthenticationFilter` | **401** |
 | **Rol yetkisi** — bu rol bu uca erişebilir mi? | `SecurityConfig` | **403** |
 | **Nesne sahipliği** — bu kayıt gerçekten bu kullanıcının mı? | Controller (`AuthenticatedUser`) | **403** |
+| **Bağlam (ABAC)** — klinik veride: tedavi ilişkisi + mesai + görevde olma | `ClinicalAccessPolicy` | **403** |
 
 Üçüncü katman kritiktir: rol denetimi tek başına, bir hastanın *başka* bir
 hastanın randevularını okumasını engellemez. Sahiplik kontrolü kimliği kaydın
 sahibiyle karşılaştırır.
+
+Dördüncü katman yalnızca klinik veride devreye girer: sahiplik "bu kayıt kimin?"
+sorusunu yanıtlar, bağlam katmanı ise "bu kişi **şu anda** bu veriye erişmeli mi?"
+sorusunu sorar.
 
 ### Yetki matrisi
 
@@ -90,8 +95,8 @@ sahibiyle karşılaştırır.
 | `PATCH /api/appointments/{id}/confirm` · `/complete` | ❌ | ✅ kendi randevusu | ❌ |
 | `GET/POST/DELETE /api/doctors/{id}/leaves` | ❌ | ✅ kendi kaydı | ❌ |
 | `GET /api/patient-profiles/by-user/{id}` | ✅ kendi profili | ❌ | ❌ |
-| `GET /api/lab-results/patient/{id}` | ✅ kendi sonuçları | ✅ | ❌ |
-| `POST /api/lab-results` | ❌ | ✅ | ❌ |
+| `GET /api/lab-results/patient/{id}` | ✅ kendi sonuçları | ✅ **bağlam koşullu** | ❌ |
+| `POST /api/lab-results` | ❌ | ✅ **bağlam koşullu** | ❌ |
 | `GET /api/users` · `GET /api/appointments` (tümü) | ❌ | ❌ | ✅ |
 | `GET /api/admin/stats` · `/users` · `/appointments` | ❌ | ❌ | ✅ |
 | `PATCH /api/users/me/password` | ✅ kendi şifresi | ✅ | ✅ |
@@ -143,6 +148,62 @@ sayılamaz.
 
 Bu kusur yetki matrisi testi sırasında görüldü: iki uç, bozuk gövdeyle
 çağrıldığında 400 yerine 500 döndürüyordu.
+
+### Bağlam farkındalı klinik erişim (ABAC)
+
+Rol tabanlı yetkilendirme *"DOCTOR rolü tahlil sonucu okuyabilir"* der. Sağlık
+verisinde bu **yeterli değildir**: bu kural, hastanedeki her doktora her hastanın
+verisini açar. Projenin ilk hâlinde tam olarak böyleydi — kodun yorumunda da
+açıkça yazıyordu: *"Doktor rolü ise herhangi bir hastanın sonuçlarını görebilir"*.
+
+Rolün üstüne üç bağlamsal koşul eklendi (`ClinicalAccessPolicy`):
+
+| Koşul | Ne sorar | Neden |
+|---|---|---|
+| **K1 Tedavi ilişkisi** | Doktorun bu hastayla, tanımlı pencerede iptal edilmemiş randevusu var mı? | Hasta gizliliği: veri yalnızca tedaviyi üstlenen doktora açıktır |
+| **K2 Mesai penceresi** | Erişim anı mesai saatleri içinde mi? | Mesai dışı erişim, normal klinik akışın parçası değildir |
+| **K3 Görevde olma** | Doktor o gün izinli mi? | İzindeki hesabın klinik veriye erişmesi beklenmez |
+
+Üçü de sağlanırsa erişim verilir; aksi hâlde **403** ve anlaşılır bir gerekçe döner.
+Tedavi ilişkisi zaman pencereli tanımlanmıştır (varsayılan: geçmiş 90 gün, gelecek
+30 gün) — üç yıl önce bir kez muayene eden doktorun süresiz erişimi olmamalıdır.
+
+#### Acil erişim ("kırıl-camı")
+
+Katı bir politika gerçek bir acil durumda hastaya zarar verebilir: mesai dışında
+gelen hastanın tahlilini doktorun görememesi kabul edilebilir değildir. Bu yüzden
+`X-Acil-Erisim` başlığında **gerekçe bildirilerek** politika aşılabilir.
+
+Erişim engellenmez, **hesap sorulur**: her aşım denetim kaydına ayrı bir işlem
+türü olarak (`CLINICAL_ACCESS_EMERGENCY`), gerekçesi ve hangi koşulun
+sağlanmadığıyla birlikte yazılır ve yönetici panelinde görünür. Gerekçe eşik
+uzunluğun altındaysa aşım kabul edilmez.
+
+Bu tasarım *"her şeyi kilitle"* değil, *"erişimi bağlama göre daralt, istisnaları
+hesap verebilir kıl"* ilkesine dayanır.
+
+#### Erişim günlüğü
+
+Klinik veri erişiminde **hem verilen hem reddedilen** her istek kaydedilir.
+Sağlık verisinde "kim neye eriştiğini" sonradan gösterebilmek, erişimi kısıtlamak
+kadar önemlidir. Ölçülen örnek kayıtlar:
+
+```
+14:19:05  ACİL ERİŞİM — politika aşıldı    ilişki=yok mesai=içinde görevde=evet [ACİL ERİŞİM]
+14:19:05  Klinik veri erişimi reddedildi   ilişki=yok mesai=içinde görevde=evet · Bu hasta size atanmamış
+14:19:05  Klinik veriye erişildi           ilişki=var mesai=içinde görevde=evet · Erişim verildi
+```
+
+#### Ayarlanabilirlik
+
+```properties
+mhrs.klinik-erisim.mesai-baslangic=08:00
+mhrs.klinik-erisim.mesai-bitis=18:00
+mhrs.klinik-erisim.iliski-gecmis-gun=90
+mhrs.klinik-erisim.iliski-gelecek-gun=30
+mhrs.klinik-erisim.acil-erisim-acik=true
+mhrs.klinik-erisim.acil-gerekce-min-uzunluk=10
+```
 
 ### Denetim kaydı (audit log)
 
@@ -361,6 +422,7 @@ saati geçmiş randevu onaylanamaz (tamamlanır veya iptal edilir).
 | `UtilizationCostTest` | 8 | Asimetrik doluluk maliyeti; %100 doluluğun hedef olmadığı |
 | `CancellationRiskModelTest` | 7 | Lojistik regresyonun davranışı ve soğuk başlangıç |
 | `OptimizerScenarioTest` | 4 | Motorun hedef dolulukta doktoru seçmesi, çeşitlilik, riskli hasta |
+| `ClinicalAccessPolicyTest` | 14 | Bağlam koşulları, sınır değerler ve acil erişim davranışı |
 | `MerkeziRandevuSistemiApplicationTests` | 1 | Uygulama bağlamı |
 
 Zamana bağlı testler sabit bir referans an kullanır; sonuçlar günün saatinden
@@ -389,6 +451,7 @@ config/      SecurityConfig (yetki kuralları), WebConfig, DataLoader
 security/    JwtUtil, JwtAuthenticationFilter, AuthenticatedUser
 rules/       AppointmentScheduleRules, AppointmentStatusRules, PasswordPolicy
 optimization/ AppointmentOptimizer, CancellationRiskModel, OptimizationWeights, SlotScore
+policy/      ClinicalAccessPolicy, ClinicalAccessProperties
 controller/  REST uçları — rol ve sahiplik kontrolleri burada
 service/     İş kuralları
 repository/  JPA sorguları

@@ -25,3 +25,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamp;
 -- Randevunun alındığı an: bekleme süresi (appointment_date - created_at) ve
 -- iptal riski modelinin öznitelikleri bu alandan hesaplanır.
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at timestamp;
+
+-- DENETİM KAYDI İŞLEM TÜRÜ KISITI
+-- Hibernate, @Enumerated(STRING) bir sütun için tabloyu İLK oluştururken o anki
+-- enum değerlerinden bir CHECK kısıtı üretir; ddl-auto=update bu kısıtı sonradan
+-- GÜNCELLEMEZ. Enum'a yeni bir işlem türü eklendiğinde (ör. PASSWORD_CHANGED,
+-- CLINICAL_ACCESS_GRANTED) insert kısıta takılır ve denetim kaydı SESSİZCE kaybolur.
+-- Geçerliliği uygulama katmanındaki enum zaten garanti ettiği için kısıt kaldırılır.
+ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_action_check;

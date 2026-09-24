@@ -3,7 +3,7 @@
 Bu belge, jüri önünde sistemi adım adım nasıl göstereceğini anlatır. Her adımda
 üç şey var: **ne yapacaksın**, **ne görülecek**, **hangi iddiayı kanıtlıyor**.
 
-Toplam süre: yaklaşık **15–18 dakika**.
+Toplam süre: yaklaşık **17–20 dakika**.
 
 ---
 
@@ -249,6 +249,56 @@ curl -o /dev/null -w "%{http_code}\n" http://localhost:8081/api/admin/stats
 
 ---
 
+### 7b. ⭐ Hasta gizliliği: bağlam farkındalı erişim · 2 dk
+
+**Yap:** Terminalde, doktor token'ıyla üç istek:
+
+```bash
+DR=$(curl -s -X POST http://localhost:8081/api/users/login -H 'Content-Type: application/json' \
+  -d '{"email":"ahmet@hastane.com","password":"123456"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+# a) KENDİ hastasının tahlilleri
+curl -o /dev/null -w "%{http_code}\n" http://localhost:8081/api/lab-results/patient/166 -H "Authorization: Bearer $DR"
+
+# b) BAŞKA bir hastanın tahlilleri
+curl http://localhost:8081/api/lab-results/patient/165 -H "Authorization: Bearer $DR"
+
+# c) Aynı istek, acil gerekçesiyle
+curl -o /dev/null -w "%{http_code}\n" http://localhost:8081/api/lab-results/patient/165 \
+  -H "Authorization: Bearer $DR" -H 'X-Acil-Erisim: Hasta acil serviste, tahlil gerekli'
+```
+
+**Görülecek:**
+- (a) **200** — kendi hastası
+- (b) **403** — *"Bu hasta size atanmamış. Klinik verilere yalnızca tedavisini üstlendiğiniz hastalar için erişebilirsiniz."*
+- (c) **200** — acil erişim çalıştı
+
+**Kanıtladığı:** Rol denetimi sağlık verisinde yetmez. "DOCTOR rolü tahlil
+okuyabilir" kuralı hastanedeki her doktora her hastanın verisini açar. Politika
+rolün üstüne üç bağlamsal koşul koyar: tedavi ilişkisi, mesai penceresi, görevde
+olma.
+
+**Sonra:** Yönetici portalı → **Denetim Kayıtları** → üç kaydı da göster:
+
+```
+ACİL ERİŞİM — politika aşıldı    ilişki=yok mesai=içinde görevde=evet [ACİL ERİŞİM]
+Klinik veri erişimi reddedildi   ilişki=yok mesai=içinde görevde=evet
+Klinik veriye erişildi           ilişki=var mesai=içinde görevde=evet
+```
+
+> **Söylenecek cümle:** "Acil erişimi kapatmadım, bilinçli bir tasarım tercihi.
+> Katı bir politika gerçek bir acil durumda hastaya zarar verir — mesai dışında
+> gelen hastanın tahlilini doktorun görememesi kabul edilemez. Bu yüzden erişimi
+> engellemiyorum, hesap soruyorum: gerekçe zorunlu ve her aşım denetim kaydına
+> ayrı bir tür olarak düşüyor."
+
+> **Soru gelirse — "Mesai koşulunu nasıl test ettiniz?"**
+> Mesai penceresi ayarlanabilir; testlerde erişim anı dışarıdan veriliyor, canlıda
+> da pencereyi daraltıp doğruladım: kendi hastasına bile 403 döndü, acil gerekçeyle
+> 200 oldu.
+
+---
+
 ### 8. Yönetici portalı ve rol yönetimi · 2 dk
 
 **Yap:** Yönetici olarak gir.
@@ -303,7 +353,7 @@ kötüye kullanımı ancak izle tespit edilir.
 
 **Yap:** Terminalde `./mvnw test`
 
-**Görülecek:** `Tests run: 225, Failures: 0, Errors: 0`
+**Görülecek:** `Tests run: 239, Failures: 0, Errors: 0`
 
 Bunların 112'si yetki matrisi kontrolüdür: 28 uç nokta, dört aktörle
 (kimliksiz · hasta · doktor · yönetici) tek tek denenir. İstersen tek başına
@@ -352,7 +402,7 @@ Aynı kurallar iki yerde kullanılıyor: müsait saat listesini üretirken ve ka
 arayüz bir saati sunarken sunucu reddedebilirdi.
 
 **"Test kapsamı ne kadar?"**
-225 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
+239 test (112'si yetki matrisi kontrolü): kural senaryoları, durum makinesi, rol yönetimi tutarlılığı, HTTP
 seviyesinde yetki denetimi, şifre politikası ve kaba kuvvet koruması.
 
 ---
