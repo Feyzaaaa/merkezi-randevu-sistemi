@@ -517,6 +517,11 @@ bağımsızdır.
 
 ---
 
+## Tez yazımı
+
+`docs/tez-plani.md`: bölüm planı, her malzemenin (figür, deney, tablo) hangi
+bölüme gireceği, "her iddia → hangi kanıt" eşlemesi ve yazma sırası önerisi.
+
 ## Savunma demo senaryosu
 
 `docs/savunma-senaryosu.md`: jüri önünde adım adım ne gösterileceğini, her adımın
