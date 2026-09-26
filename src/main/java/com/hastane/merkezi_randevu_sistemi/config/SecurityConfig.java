@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -117,12 +118,23 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    // Hangi kaynakların (origin) tarayıcı üzerinden API'ye erişebileceği.
+    // Sabit "*" yerine yapılandırmadan okunur: geliştirmede yerel makine ve aynı
+    // ağdaki telefon, canlıda yalnızca uygulamanın kendi alan adı izinlidir.
+    @Value("${mhrs.cors.izinli-kaynaklar}")
+    private String izinliKaynaklar;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // MİLYONLARCA FARKLI IP/CİHAZ İÇİN: Tüm origin desenlerine izin veriyoruz
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // "*" ile birlikte allowCredentials=true kullanmak, kimlik bilgisi taşıyan
+        // istekleri herhangi bir siteye açar. Bu yüzden liste dışarıdan verilir.
+        configuration.setAllowedOriginPatterns(
+                Arrays.stream(izinliKaynaklar.split(","))
+                        .map(String::trim)
+                        .filter(kaynak -> !kaynak.isEmpty())
+                        .toList());
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

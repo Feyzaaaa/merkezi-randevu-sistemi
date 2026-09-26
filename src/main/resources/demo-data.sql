@@ -1,6 +1,13 @@
--- ÖRNEK VERİ YÜKLEME (idempotent / tekrar çalıştırılabilir)
+-- ÖRNEK (DEMO) VERİ YÜKLEME - idempotent / tekrar çalıştırılabilir
 --
--- ÖNEMLİ: Bu dosya spring.sql.init.mode=always ayarı yüzünden backend'in HER açılışında çalışır.
+-- !!! BU DOSYA YALNIZCA "demo" PROFİLİNDE YÜKLENİR !!!
+-- Dosyanın adı bilerek "data.sql" DEĞİLDİR: Spring Boot "data.sql" adlı dosyayı
+-- her profilde kendiliğinden çalıştırır. Aşağıdaki yönetici hesabı herkese açık
+-- depoda durduğu için, canlı ortamda çalıştırılması bir yetkilendirme açığı olurdu.
+-- Yükleme, application-demo.properties içindeki spring.sql.init.data-locations
+-- ayarıyla AÇIKÇA istenir. Canlı ortam (prod profili) bu dosyayı hiç görmez.
+--
+-- ÖNEMLİ: demo profili etkinken bu dosya backend'in HER açılışında çalışır.
 -- Bu yüzden burada TRUNCATE kullanılmaz: kayıt olan hastalar, alınan randevular ve yönetici
 -- panelinden yapılan rol değişiklikleri her yeniden başlatmada silinirdi.
 -- Bunun yerine her kayıt "yoksa ekle" mantığıyla yazılır; zaten varsa hiçbir şey yapılmaz.
@@ -8,6 +15,7 @@
 -- 1. Poliklinikler (name sütunu UNIQUE)
 INSERT INTO departments (name) VALUES ('Dahiliye') ON CONFLICT (name) DO NOTHING;
 INSERT INTO departments (name) VALUES ('Göz Hastalıkları') ON CONFLICT (name) DO NOTHING;
+INSERT INTO departments (name) VALUES ('Kardiyoloji') ON CONFLICT (name) DO NOTHING;
 
 -- 2. Kullanıcılar (email sütunu UNIQUE)
 -- NOT: Şifreler BCrypt ile hashlenmiştir. Aşağıdaki hash, düz metin "123456" şifresine karşılık gelir.
@@ -21,6 +29,10 @@ ON CONFLICT (email) DO NOTHING;
 
 -- Yönetici (ADMIN) hesabı: rol tabanlı yetkilendirmenin üçüncü rolü.
 -- Sisteme doktor/poliklinik tanımlar, rolleri yönetir ve tüm randevuları denetler.
+--
+-- GÜVENLİK UYARISI: Bu hesabın şifresi ("123456") ve BCrypt özeti herkese açık
+-- depoda yazılıdır. Yalnızca geliştirme/demo içindir. Canlı ortamda yönetici
+-- hesabı bu dosyadan DEĞİL, elle veya ayrı bir kurulum adımıyla açılmalıdır.
 INSERT INTO users (email, password, first_name, last_name, role)
 VALUES ('admin@hastane.com', '$2a$10$BBy5Xz5a3NzVwAm2JmFjwutr8IgFt9mlj/tyS8ovwVIpY94W6t2/C', 'Sistem', 'Yöneticisi', 'ADMIN')
 ON CONFLICT (email) DO NOTHING;

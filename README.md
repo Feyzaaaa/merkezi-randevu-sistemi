@@ -20,9 +20,19 @@ açılışta otomatik oluşur (`spring.jpa.hibernate.ddl-auto=update`).
 Şifreler depoya **gönderilmez**. Şablonu kopyalayıp kendi değerlerinizi yazın:
 
 ```bash
-cp src/main/resources/application-local.properties.example \
-   src/main/resources/application-local.properties
+cp config/application-local.properties.example \
+   config/application-local.properties
 ```
+
+> Dosya bilerek `src/main/resources` altında **değil**, proje kökündeki `config/`
+> dizinindedir. `resources` altındaki her dosya derlenen jar'ın içine paketlenir;
+> orada tutulsaydı veritabanı şifresi, JWT anahtarı ve Gmail uygulama şifresi
+> dağıtılan çıktıyla birlikte taşınırdı. Spring Boot `./config/` dizinini çalışma
+> anında kendiliğinden okur, ama oradaki dosya jar'a girmez.
+>
+> Bu nedenle uygulama **proje kökünden** çalıştırılmalıdır (Eclipse bunu zaten yapar).
+> Jar'ı başka bir dizinden çalıştırırsanız gizli değerleri ortam değişkenleriyle
+> vermeniz gerekir.
 
 | Ayar | Açıklama |
 |---|---|
@@ -40,10 +50,51 @@ tutucuları taşır.
 ./mvnw test                # test takımı
 ```
 
+### Profiller ve ortam değişkenleri
+
+Geliştirme ve canlı yapılandırması **bilerek ayrılmıştır**. Ayrımın sebebi güvenliktir:
+örnek veri dosyası, şifresi bu depoda açıkça yazılı bir `ADMIN` hesabı açar. Bu hesabın
+canlı ortamda oluşması, rol tabanlı yetkilendirmenin tamamını geçersiz kılan bir açık olurdu.
+
+| Profil | Ne yapar | Ne zaman |
+|---|---|---|
+| `local` | Gizli değerleri `application-local.properties` dosyasından okur (git'e gönderilmez) | Geliştirme |
+| `demo` | `demo-data.sql` ile örnek poliklinik, doktor, yönetici ve hasta kayıtlarını yükler | Geliştirme, jüri demosu, testler |
+| `prod` | Şemayı yalnızca **doğrular** (`ddl-auto=validate`), örnek veri yüklemez, SQL günlüğünü ve hata ayrıntılarını kapatır | Canlı |
+
+Varsayılan `local,demo`'dur; canlıda `SPRING_PROFILES_ACTIVE=prod` ile ezilir.
+
+`schema.sql` **her profilde** çalışır: kısmi tekil indeksler ve sütun göçleri canlıda da
+gereklidir. Örnek veri ise yalnızca `demo` profilinde, `spring.sql.init.data-locations`
+ile **açıkça** istenir — dosya adı bu yüzden `data.sql` değildir (Spring Boot o adı her
+profilde kendiliğinden çalıştırır).
+
+**Ortam değişkenleri**
+
+| Değişken | Varsayılan | Açıklama |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | `local,demo` | Canlıda `prod` |
+| `MHRS_DB_URL` | yerel `mhrs_db` | JDBC adresi |
+| `MHRS_DB_USERNAME` | `postgres` | Veritabanı kullanıcısı |
+| `MHRS_DB_PASSWORD` | `postgres` | Veritabanı şifresi |
+| `MHRS_JWT_SECRET` | **yok — zorunlu** | Token imzalama anahtarı, en az 32 bayt |
+| `MHRS_CORS_ORIGINS` | `localhost:3000` ve yerel ağ | Tarayıcıdan erişebilecek adresler |
+| `MHRS_MAIL_USERNAME` / `MHRS_MAIL_PASSWORD` | boş | Gmail SMTP |
+| `PORT` | `8081` | Barındırma platformları bu değişkeni dayatır |
+
+`MHRS_JWT_SECRET` için **bilerek varsayılan verilmemiştir.** Varsayılan bırakılsaydı,
+canlıda değişken unutulduğunda uygulama sessizce depoda yazılı bir anahtarla çalışır ve
+herkes kendine istediği rolü veren token üretebilirdi. Değer yok veya 32 baytın altındaysa
+uygulama `JwtUtil` içindeki doğrulamada **açılışta durur** — sessiz açık yerine gürültülü hata.
+
 ### Örnek hesaplar
 
-İlk açılışta `data.sql` ile yüklenir (şifre: `123456`). Dosya
+İlk açılışta `demo-data.sql` ile yüklenir (şifre: `123456`). Dosya
 tekrar çalıştırılabilir yapıdadır — mevcut veriyi silmez, eksik kaydı ekler.
+
+> **Yalnızca `demo` profilinde yüklenir.** Bu hesapların şifreleri herkese açık
+> depoda yazılı olduğu için canlı ortamda (`SPRING_PROFILES_ACTIVE=prod`) bu
+> dosya hiç çalıştırılmaz. Ayrıntı: [Profiller](#profiller-ve-ortam-değişkenleri).
 
 | E-posta | Rol |
 |---|---|
@@ -539,7 +590,7 @@ içinde anlatılmıştır.
 ## Proje yapısı
 
 ```
-config/      SecurityConfig (yetki kuralları), WebConfig, DataLoader
+config/      SecurityConfig (yetki kuralları), WebConfig
 security/    JwtUtil, JwtAuthenticationFilter, AuthenticatedUser
 rules/       AppointmentScheduleRules, AppointmentStatusRules, PasswordPolicy
 optimization/ AppointmentOptimizer, CancellationRiskModel, OptimizationWeights, SlotScore

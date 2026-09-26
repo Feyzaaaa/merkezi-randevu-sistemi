@@ -12,7 +12,7 @@ public class Department {
     @Column(nullable = false, unique = true)
     private String name;
 
-    // 1. HATAYI ÇÖZECEK OLAN BOŞ CONSTRUCTOR (DataLoader bunu arıyor)
+    // JPA'nın nesneyi veritabanından üretebilmesi için gereken boş kurucu
     public Department() {
     }
 

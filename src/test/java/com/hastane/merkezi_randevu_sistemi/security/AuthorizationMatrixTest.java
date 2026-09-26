@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.springframework.test.context.TestPropertySource;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -48,6 +50,17 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+// KATMAN YALITIMI: Bu test YETKİLENDİRME (kimlik + rol + sahiplik) katmanını ölçer.
+// Bağlam katmanı (ABAC) ayrı bir testin konusudur: ClinicalAccessPolicyTest.
+//
+// Mesai penceresi burada bilerek 24 saate genişletilir. Aksi halde test, çalıştırıldığı
+// SAATE bağlı olurdu: 08:00-18:00 dışında koşturulduğunda klinik uçlarda doktor
+// ABAC tarafından reddedilir ve test, yetkilendirmede bir hata yokken çöker.
+// (Bu kusur gerçekten yaşandı: takım 19:08'de çalıştırıldığında kırmızıya döndü.)
+@TestPropertySource(properties = {
+        "mhrs.klinik-erisim.mesai-baslangic=00:00",
+        "mhrs.klinik-erisim.mesai-bitis=23:59"
+})
 class AuthorizationMatrixTest {
 
     /** Var olmayan kayıt kimliği: yetki geçilirse iş katmanı 400/404 döner */
@@ -89,7 +102,7 @@ class AuthorizationMatrixTest {
         this.doktorId = doctorRepository.findByUserId(doktorKullanici.getId())
                 .map(Doctor::getId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Örnek veride doktor kaydı bulunamadı; data.sql yüklenmiş olmalı"));
+                        "Örnek veride doktor kaydı bulunamadı; demo-data.sql yüklenmiş olmalı"));
     }
 
     private Long hastaId, doktorKullaniciId, doktorId, yoneticiId;
@@ -99,7 +112,7 @@ class AuthorizationMatrixTest {
                 .filter(u -> u.getRole() == rol)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        rol + " rolünde kullanıcı yok; data.sql yüklenmiş olmalı"));
+                        rol + " rolünde kullanıcı yok; demo-data.sql yüklenmiş olmalı"));
     }
 
     /** Matris testi için hasta hesabı: varsa mevcut hasta kullanılır, yoksa oluşturulur */

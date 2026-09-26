@@ -33,5 +33,11 @@ build/
 .vscode/
 
 # Yerel gizli ayarlar (veritabanı/JWT/e-posta şifreleri) - asla commit'lenmez
+#
+# Dosya bilerek src/main/resources ALTINDA DEĞİL, proje kökündeki config/ dizinindedir:
+# resources altındaki her dosya derlenen jar'ın İÇİNE paketlenir ve gizli değerler
+# dağıtılan çıktıyla birlikte taşınırdı. Spring Boot ./config/ dizinini çalışma
+# anında kendiliğinden okur, ama oradaki dosya jar'a girmez.
 application-local.properties
 src/main/resources/application-local.properties
+config/application-local.properties
